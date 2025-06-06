@@ -3,6 +3,11 @@ uuid = "53b54513-8a0c-4f5e-ae5a-229a0df049d1"
 authors = ["Sascha Stüttgen <sascha.stuettgen@rwth-aachen.de> and contributors"]
 version = "0.0.1-DEV"
 
+[deps]
+Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+RigidityTheoryTools = "5b45e325-545f-4a0f-a688-890b70d0fa47"
+
 [compat]
 julia = "1.6.7"
 
