@@ -4,6 +4,7 @@ authors = ["Sascha Stüttgen <sascha.stuettgen@rwth-aachen.de> and contributors"
 version = "0.0.1-DEV"
 
 [deps]
+AbstractAlgebra = "c3fe647b-3220-5bb0-a1ea-a7954cac585d"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
