@@ -95,11 +95,11 @@ function edge!(v::Vertex, e::Edge)
 end
 
 # comparison
-Base.:==(v1::Vertex, v2::Vertex) = id(v1) == id(v2) && v1.mesh = v2.mesh
+Base.:(==)(v1::Vertex, v2::Vertex) = id(v1) == id(v2) && v1.mesh === v2.mesh
 
 ############### Face functions
 # constructor. Construct a new face. edge is initialized as nothing, because face should be constructed before edge.
-function Face(i::Int; mesh::Union{Nothing, PolyhedralMesh} = nothing)
+function Face(i::Int; mesh::Union{Nothing,PolyhedralMesh}=nothing)
 
 end
 
