@@ -64,13 +64,23 @@ mutable struct PolyhedralMesh
 end
 
 ############### Vertex functions
-# constructor. Construct a new vertex with id, label, coord and mesh. Edge is initialized as nothing, because vertex should be constructed before an edge has this vertex as a tail.
-function Vertex(i::Int; label::Union{Nothing,Int,String}=nothing, coord::Union{Nothing,Vector{Union{AbstractAlgebra.RingElem,Number}}}=nothing, mesh::Union{Nothing,PolyhedralMesh}=nothing)
+# constructor. Construct a new vertex with id, label, edge, coord and mesh. Vertex will be tail of edge. If tail of edge is not nothing, an error is thrown
+function Vertex(id::Int; label::Union{Nothing,Int,String}=nothing, edge::Union{Nothing,Edge}=nothing, coord::Union{Nothing,Vector{Union{AbstractAlgebra.RingElem,Number}}}=nothing, mesh::Union{Nothing,PolyhedralMesh}=nothing)
     if isnothing(label)
-        label = i
+        label = id
     end
 
-    return Vertex(i, label, coord, nothing, mesh)
+    v = Vertex(id, label, coord, nothing, mesh)
+
+    if !isnothing(edge)
+        if isnothing(tail(edge)) # if edge tail is not yet set, set edge tail to the newly created vertex
+            tail!(edge, v)
+            edge!(v, edge)
+        else
+            throw(ArgumentError("Tail of edge needs to be nothing."))
+        end
+    end
+    return v
 end
 
 id(v::Vertex) = v.id
@@ -94,18 +104,67 @@ function edge!(v::Vertex, e::Edge)
     return v
 end
 
+function label!(v::Vertex, s::String)
+    v.label = s
+    return v
+end
+
+function label!(v::Vertex, i::Int)
+    if id(v) != i
+        throw(ArgumentError("If label is integer, vertex id and label must match. Vertex id is $(id(v))."))
+    end
+    v.label = i
+    return v
+end
+
 # comparison
 Base.:(==)(v1::Vertex, v2::Vertex) = id(v1) == id(v2) && v1.mesh === v2.mesh
 
 ############### Face functions
-# constructor. Construct a new face. edge is initialized as nothing, because face should be constructed before edge.
-function Face(i::Int; mesh::Union{Nothing,PolyhedralMesh}=nothing)
+# constructor. Construct a new face with id, edge and mesh. If tail of edge is not nothing, an error is thrown.
+function Face(id::Int; edge::Union{Nothing,Edge}=nothing, mesh::Union{Nothing,PolyhedralMesh}=nothing)
+    f = Face(id, nothing, mesh)
 
+    if !isnothing(edge)
+        if isnothing(tail(edge)) # if edge tail is not yet set, set edge tail to the newly created vertex
+            tail!(edge, f)
+        else
+            throw(ArgumentError("Tail of edge needs to be nothing."))
+        end
+        edge!(f, edge)
+    end
+    return f
 end
 
+id(f::Face) = f.id
+edge(f::Face) = f.edge
 mesh(f::Face) = f.mesh::PolyhedralMesh
 
+"""
+    edge!(f::Face, e::Edge)
+
+Set the edge pointer of `f` to the edge `e`. `e` has to have `f` as its tail.
+"""
+function edge!(f::Face, e::Edge)
+    if !(tail(e) === f)
+        throw(ArgumentError("Tail of edge must be the same object as f ($f), but tail is $(tail(e))"))
+    end
+    if !(mesh(f) === mesh(e))
+        throw(ArgumentError("Meshes of face and edge do not match."))
+    end
+    f.edge = e
+    return f
+end
+
+
 ############### Edge functions
+function Edge(mesh::PolyhedralMesh)
+    e = Edge()
+    e.mesh = mesh
+
+    return e
+end
+
 mesh(e::Edge) = e.mesh::PolyhedralMesh
 
 """
@@ -114,6 +173,13 @@ mesh(e::Edge) = e.mesh::PolyhedralMesh
 Return the tail of the edge `e`.
 """
 tail(e::Edge) = e.tail
+
+"""
+    next(e::Edge)
+
+Return the next edge in counterclockwise order around `tail(e)`.
+"""
+next(e::Edge) = e.next
 
 """
     rot(e::Edge)
@@ -162,7 +228,7 @@ is_primary(e::Edge) = typeof(head(e)) <: Union{Nothing,Vertex} && typeof(tail(e)
 
 Return whether `e`is a dual edge, i.e. its head and tail are faces.
 """
-id_dual(e::Edge) = typeof(head(e)) <: Union{Nothing,Face} && typeof(tail(e)) <: Union{Nothing,Face} && typeof(left(e)) <: Union{Nothing,Vertex} && typeof(right(e)) <: Union{Nothing,Vertex}
+is_dual(e::Edge) = typeof(head(e)) <: Union{Nothing,Face} && typeof(tail(e)) <: Union{Nothing,Face} && typeof(left(e)) <: Union{Nothing,Vertex} && typeof(right(e)) <: Union{Nothing,Vertex}
 
 """
     tail!(e::Edge, x::Union{Vertex,Face})
@@ -170,10 +236,15 @@ id_dual(e::Edge) = typeof(head(e)) <: Union{Nothing,Face} && typeof(tail(e)) <: 
 Set the tail of `e` to `x` and return the updated edge `e`.
 """
 function tail!(e::Edge, x::Union{Vertex,Face})
-    if is_primary(e) && !(typeof(x) <: Vertex)
+    # if edge is non empty (not both primary and dual), check that typeof(x) matches edge type.
+    if !is_dual(e) && is_primary(e) && !(typeof(x) <: Vertex)
         throw(ArgumentError("Can't set the tail, as edge is primary, but type of new tail is $(typeof(x)). (Should be Vertex)."))
-    elseif is_dual(e) && !(typeof(x) <: Face)
+    elseif !is_primary(e) && is_dual(e) && !(typeof(x) <: Face)
         throw(ArgumentError("Can't set the tail, as edge is dual, but type of new tail is $(typeof(x)). (Should be Face)."))
+    end
+
+    if !(e.mesh === x.mesh)
+        throw(ArgumentError("Meshes of Edge and face/vertex don't match."))
     end
 
     e.tail = x
@@ -209,7 +280,7 @@ function left!(e::Edge, x::Union{Vertex,Face})
         throw(ArgumentError("Can't set left, as edge is dual, but type of new left is $(typeof(x)). (Should be Vertex)."))
     end
 
-    tail!(rot(e), x)
+    head!(rot(e), x)
     return e
 end
 
@@ -254,6 +325,33 @@ function make_edge()
     e.flip, e_rot.flip, e_rot2.flip, e_rot3.flip = e_flip, e_flip_rot3, e_flip_rot2, e_flip_rot
     e_flip.rot, e_flip_rot.rot, e_flip_rot2.rot, e_flip_rot3.rot = e_flip_rot, e_flip_rot2, e_flip_rot3, e_flip
     e_flip.next, e_flip_rot.next, e_flip_rot2.next, e_flip_rot3.next = e_flip, e_flip_rot3, e_flip_rot2, e_flip_rot
+    e_flip.flip, e_flip_rot.flip, e_flip_rot2.flip, e_flip_rot3.flip = e, e_rot3.flip, e_rot2.flip, e_rot.flip
+
+    return e
+end
+
+"""
+    make_edge(mesh::PolyhedralMesh)
+
+Construct an empty edge in the polyhedral mesh `mesh` with all its pointers to other edges correctly set up.
+"""
+function make_edge(mesh::PolyhedralMesh)
+    e = make_edge()
+    e.mesh = mesh
+    e_rot = rot(e)
+    e_rot.mesh = mesh
+    e_rot2 = rot(rot(e))
+    e_rot2.mesh = mesh
+    e_rot3 = rot(rot(rot(e)))
+    e_rot3.mesh = mesh
+    e_flip = flip(e)
+    e_flip.mesh = mesh
+    e_flip_rot = rot(flip(e))
+    e_flip_rot.mesh = mesh
+    e_flip_rot2 = rot(rot(flip(e)))
+    e_flip_rot2.mesh = mesh
+    e_flip_rot3 = rot(rot(rot(flip(e))))
+    e_flip_rot3.mesh = mesh
 
     return e
 end
@@ -267,6 +365,7 @@ If `a` and `b` belong to the same vertex ring (have the same tail), this operati
 splice! is an involution, meaning splice!(splice!(a, b)...) === a, b
 """
 function splice!(a::Edge, b::Edge)
+    # non flipped
     alpha = next(rot(a))
     beta = next(rot(b))
 
@@ -275,12 +374,60 @@ function splice!(a::Edge, b::Edge)
     a.next = b_next
     b.next = a_next
 
-    alpha_next = alpha.next
-    beta_next = beta.next
+    alpha_next = next(alpha)
+    beta_next = next(beta)
     alpha.next = beta_next
     beta.next = alpha_next
+
+    # flipped
+    a_flip = flip(a)
+    b_flip = flip(b)
+    alpha_flip = next(rot(flip(a)))
+    beta_flip = next(rot(flip(b)))
+
+    a_flip_next = next(flip(a))
+    b_flip_next = next(flip(b))
+    a_flip.next = b_flip_next
+    b_flip.next = a_flip_next
+
+    alpha_flip_next = next(alpha_flip)
+    beta_flip_next = next(beta_flip)
+    alpha_flip.next = beta_flip_next
+    beta_flip.next = alpha_flip_next
 
     return a, b
 end
 
 
+############### PolyhedralMesh functions
+vertices(mesh) = mesh.vertices
+edges(mesh) = mesh.edges
+faces(mesh) = mesh.faces
+
+"""
+    _check_consistency(mesh::PolyhedralMesh)
+
+Check the consistency of the mesh, i.e. for each edge `e`: 
+- tail(next(e)) === tail(e) 
+- left(edge) === right(next(e))
+- tail(flip(e)) === tail(e)
+- !is_primary(e) || (!isnothing(tail(e)) && !isnothing(head(e)) && (!isnothing(left(e)) || !isnothing(right(e))))
+- !is_dual(e) || (!isnothing(left(e)) && !isnothing(right(e)) && (!isnothing(head(e)) || !isnothing(tail(e))))
+"""
+function _check_consistency(mesh::PolyhedralMesh)
+    for e in edges(mesh)
+        if !(tail(next(e)) === tail(e))
+            return false
+        elseif !(left(edge) === right(next(e)))
+            return false
+        elseif !(tail(flip(e)) === tail(e))
+            return false
+        elseif !(!is_primary(e) || (!isnothing(tail(e)) && !isnothing(head(e)) && (!isnothing(left(e)) || !isnothing(right(e)))))
+            return false
+        elseif !(!is_dual(e) || (!isnothing(left(e)) && !isnothing(right(e)) && (!isnothing(head(e)) || !isnothing(tail(e)))))
+            return false
+        end
+    end
+
+    return true
+end
