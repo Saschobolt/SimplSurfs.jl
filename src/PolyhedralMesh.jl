@@ -20,10 +20,10 @@ mutable struct Face
 end
 
 function Base.show(io::IO, f::Face)
-    print(io, "F $(f.id) ($(string(f.vertices)))")
+    print(io, "F $(f.id)")
 end
 
-mutable struct Edge
+mutable struct Edge ##########TODO: edit the struct: Union{Nothing, Edge} ist nicht gut. Besser einfach nur Edge. new() setzt die nicht definierten Felder dann auf undefined. Verwende isdefined in späteren Funktionen. Schreibe neue Structs PrimalEdge, DualEdge, damit Zugriff auf tail nicht ineffizient ist (Typ sollte definiert sein) 
     tail::Union{Nothing,Vertex,Face} # tail of edge
 
     next::Union{Nothing,Edge} # next edge in counterclockwise order around tail (if tail is a vertex, this is the edge with tail == this.tail and head = other vertex connected to tail in this.left with right = this.left)
@@ -86,7 +86,7 @@ end
 id(v::Vertex) = v.id
 label(v::Vertex) = v.label
 mesh(v::Vertex) = v.mesh::PolyhedralMesh
-edge(v::Vertex) = v.edge::Edge
+edge(v::Vertex) = v.edge
 
 """
     edge!(v::Vertex, e::Edge)
@@ -156,6 +156,11 @@ function edge!(f::Face, e::Edge)
     return f
 end
 
+function vertices(f::Face)
+    e = edge(f)
+
+end
+
 
 ############### Edge functions
 function Edge(mesh::PolyhedralMesh)
@@ -196,6 +201,13 @@ Return the flipped edge of `e`. This is the edge with left and right swapped.
 flip(e::Edge) = e.flip
 
 """
+    flip(e::Edge)
+
+Return the reversed edge of `e`. This is the edge with head and tail swapped.
+"""
+rev(e::Edge) = flip(rot(rot(e)))
+
+"""
     head(e::Edge)
 
 Return the head of the edge `e`.
@@ -217,18 +229,25 @@ Return the object to the left of the edge `e`.
 left(e::Edge) = head(rot(e))
 
 """
+    prev(e::Edge)
+
+Return the previous edge in counterclockwise order around `tail(e)`.
+"""
+prev(e::Edge) = flip(next(flip(e)))
+
+"""
     is_primary(e::Edge)
 
 Return whether `e`is a primary edge, i.e. its head and tail are vertices.
 """
-is_primary(e::Edge) = typeof(head(e)) <: Union{Nothing,Vertex} && typeof(tail(e)) <: Union{Nothing,Vertex} && typeof(left(e)) <: Union{Nothing,Face} && typeof(right(e)) <: Union{Nothing,Face}
+is_primary(e::Edge) = head(e) isa Union{Nothing,Vertex} && tail(e) isa Union{Nothing,Vertex} && left(e) isa Union{Nothing,Face} && right(e) isa Union{Nothing,Face}
 
 """
     id_dual(e::Edge)
 
 Return whether `e`is a dual edge, i.e. its head and tail are faces.
 """
-is_dual(e::Edge) = typeof(head(e)) <: Union{Nothing,Face} && typeof(tail(e)) <: Union{Nothing,Face} && typeof(left(e)) <: Union{Nothing,Vertex} && typeof(right(e)) <: Union{Nothing,Vertex}
+is_dual(e::Edge) = head(e) isa Union{Nothing,Face} && typeof(tail(e)) <: Union{Nothing,Face} && typeof(left(e)) <: Union{Nothing,Vertex} && typeof(right(e)) <: Union{Nothing,Vertex}
 
 """
     tail!(e::Edge, x::Union{Vertex,Face})
@@ -247,8 +266,11 @@ function tail!(e::Edge, x::Union{Vertex,Face})
         throw(ArgumentError("Meshes of Edge and face/vertex don't match."))
     end
 
+    # @info "e before: $e"
     e.tail = x
+    # @info "e after: $e"
     e.flip.tail = x
+    # @info "e flip after $(flip(e))"
     return e
 end
 
@@ -258,18 +280,19 @@ end
 Set the head of `e` to `x` and return the updated edge `e`.
 """
 function head!(e::Edge, x::Union{Vertex,Face})
-    if is_primary(e) && !(typeof(x) <: Vertex)
+    if !is_dual(e) && is_primary(e) && !(typeof(x) <: Vertex)
         throw(ArgumentError("Can't set the head, as edge is primary, but type of new head is $(typeof(x)). (Should be Vertex)."))
-    elseif is_dual(e) && !(typeof(x) <: Face)
+    elseif !is_primary(e) && is_dual(e) && !(typeof(x) <: Face)
         throw(ArgumentError("Can't set the head, as edge is dual, but type of new head is $(typeof(x)). (Should be Face)."))
     end
 
-    tail!(rot(rot(e)), x)
+    e.rot.rot.tail = x
+    e.flip.rot.rot.tail = x
     return e
 end
 
 """
-    head!(e::Edge, x::Union{Vertex,Face})
+    left!(e::Edge, x::Union{Vertex,Face})
 
 Set left of `e` to `x` and return the updated edge `e`.
 """
@@ -280,7 +303,8 @@ function left!(e::Edge, x::Union{Vertex,Face})
         throw(ArgumentError("Can't set left, as edge is dual, but type of new left is $(typeof(x)). (Should be Vertex)."))
     end
 
-    head!(rot(e), x)
+    e.rot.rot.rot.tail = x
+    e.flip.rot.tail = x
     return e
 end
 
@@ -296,7 +320,8 @@ function right!(e::Edge, x::Union{Vertex,Face})
         throw(ArgumentError("Can't set right, as edge is dual, but type of new right is $(typeof(x)). (Should be Vertex)."))
     end
 
-    tail!(rot(e), x)
+    e.rot.tail = x
+    e.flip.rot.rot.rot.tail = x
     return e
 end
 
@@ -325,7 +350,7 @@ function make_edge()
     e.flip, e_rot.flip, e_rot2.flip, e_rot3.flip = e_flip, e_flip_rot3, e_flip_rot2, e_flip_rot
     e_flip.rot, e_flip_rot.rot, e_flip_rot2.rot, e_flip_rot3.rot = e_flip_rot, e_flip_rot2, e_flip_rot3, e_flip
     e_flip.next, e_flip_rot.next, e_flip_rot2.next, e_flip_rot3.next = e_flip, e_flip_rot3, e_flip_rot2, e_flip_rot
-    e_flip.flip, e_flip_rot.flip, e_flip_rot2.flip, e_flip_rot3.flip = e, e_rot3.flip, e_rot2.flip, e_rot.flip
+    e_flip.flip, e_flip_rot.flip, e_flip_rot2.flip, e_flip_rot3.flip = e, e_rot3, e_rot2, e_rot
 
     return e
 end
@@ -365,69 +390,146 @@ If `a` and `b` belong to the same vertex ring (have the same tail), this operati
 splice! is an involution, meaning splice!(splice!(a, b)...) === a, b
 """
 function splice!(a::Edge, b::Edge)
-    # non flipped
-    alpha = next(rot(a))
-    beta = next(rot(b))
+    # if a and b are part of different vertex cycles, splice pastes these vertex cycles in a way that new next of a is original next of b and vice versa. 
+    # consistency is ensured by also the next pointers of rot(next(a)) and rot(next(b)).
+    # for the flipped case the next pointers of flip(prev(a)) and flip(prev(b)) need to be switched. Further the next pointers of rot(next(flip(prev(a)))) and rot(next(flip(prev(b)))) need to be switched to ensure consistency.
+    # splice! is self-inverse, meaning calling splice on two edges of the same cycle results in "splitting" the tail and two disconnected cycles.
 
+    # edges that need their next pointers altered.
+    a_next_rot = rot(next(a)) # dual edge corr to a, non flipped
+    b_next_rot = rot(next(b)) # dual edge corr to b, non flipped
+    alpha = flip(next(a)) # primal edge corr to a, flipped
+    beta = flip(next(b)) # primal edge corr to b, flipped
+    alpha_next_rot = rot(next(alpha)) # dual edge corr to a, flipped
+    beta_next_rot = rot(next(beta)) # dual edge corr to b, flipped
+
+    # their next pointers
     a_next = next(a)
     b_next = next(b)
-    a.next = b_next
-    b.next = a_next
-
+    a_next_rot_next = next(a_next_rot)
+    b_next_rot_next = next(b_next_rot)
     alpha_next = next(alpha)
     beta_next = next(beta)
+    alpha_next_rot_next = next(alpha_next_rot)
+    beta_next_rot_next = next(beta_next_rot)
+
+    # switch next pointers
+    a.next = b_next
+    b.next = a_next
+    a_next_rot.next = b_next_rot_next
+    b_next_rot.next = a_next_rot_next
     alpha.next = beta_next
     beta.next = alpha_next
-
-    # flipped
-    a_flip = flip(a)
-    b_flip = flip(b)
-    alpha_flip = next(rot(flip(a)))
-    beta_flip = next(rot(flip(b)))
-
-    a_flip_next = next(flip(a))
-    b_flip_next = next(flip(b))
-    a_flip.next = b_flip_next
-    b_flip.next = a_flip_next
-
-    alpha_flip_next = next(alpha_flip)
-    beta_flip_next = next(beta_flip)
-    alpha_flip.next = beta_flip_next
-    beta_flip.next = alpha_flip_next
+    alpha_next_rot.next = beta_next_rot_next
+    beta_next_rot.next = alpha_next_rot_next
 
     return a, b
 end
 
 
 ############### PolyhedralMesh functions
+# PolyhedralMesh constructor from list of face vertex lists.
+function PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...)))
+    vert_ids = sort(union(faces...))
+    if vert_ids != collect(1:length(vert_ids))
+        throw(ArgumentError("Vertex ids need to be consecutive integers starting from 1."))
+    end
+
+    mesh = PolyhedralMesh() # empty mesh that is updated
+    vertices = [Vertex(id, mesh=mesh, label=labels[id]) for id in vert_ids]
+    mesh.vertices = vertices
+
+    edge_dict = Dict{SVector{2,Int},Edge}() # dict that keeps track of which primary edges are already in the mesh. Convention: All 
+
+    for (i, f) in enumerate(faces)
+        face = Face(i, mesh=mesh)
+        push!(mesh.faces, face)
+        prev_edge = nothing
+
+        for (it, j) in enumerate(vcat(eachindex(f), [1]))
+            tail_id = f[j]
+            head_id = f[mod1(j + 1, length(f))]
+            edge_id = [tail_id, head_id]
+
+            if !haskey(edge_dict, edge_id)
+                # case 1: edge is not already processed. Construct new edge. Set tail, head and right face.
+                current_edge = make_edge(mesh)
+                tail!(current_edge, vertices[tail_id])
+                head!(current_edge, vertices[head_id])
+                right!(current_edge, face)
+
+                # add edge and all its related edges to mesh.edges
+                mesh.edges = vcat(mesh.edges, [current_edge,
+                    rot(current_edge),
+                    rot(rot(current_edge)),
+                    rot(rot(rot(current_edge))),
+                    flip(current_edge),
+                    rot(flip(current_edge)),
+                    rot(rot(flip(current_edge))),
+                    rot(rot(rot(flip(current_edge))))])
+
+                # set edge entries of tail vertex and right face, if it isn't already set
+                if isnothing(edge(vertices[tail_id]))
+                    edge!(vertices[tail_id], current_edge)
+                end
+                if isnothing(edge(face))
+                    edge!(face, rot(current_edge))
+                end
+
+            elseif haskey(edge_dict, edge_id) && it != length(f) + 1
+                # case 2: edge was already processed in another face. By behaviour defined above, the right side is set to this different face
+                current_edge = flip(edge_dict[edge_id]) # flip, so that left face is set and right set is nothing
+
+                if !isnothing(right(current_edge)) # check consistency of face list. If right is not nothing, there is an edge with at least three incident faces.
+                    throw(ArgumentError("Face list is not consistent. There is at least one edge with three or more faces incident to it."))
+                end
+
+                right!(current_edge, face)
+            else
+                # case 3: edge is the first edge around the current face f.
+                current_edge = edge_dict[edge_id] # right side is set. Either left or right is current face.
+                if right(current_edge) !== face
+                    current_edge = flip(current_edge) # flip edge, if right is not current face.
+                end
+            end
+
+            # splice prev(edge) with rot(rot(prev_edge)). 
+            # prev_edge is the last edge around the face, thus rot(rot(prev_edge)) has same tail as edge and face as left face. Thus next(rot(rot(prev_edge))) should be edge. This is achieved by splice!(prev(e), rot(rot(prev_edge)))
+            if !isnothing(prev_edge) && next(rot(rot(prev_edge))) !== current_edge
+                splice!(prev(current_edge), rot(rot(prev_edge)))
+            end
+
+
+            prev_edge = current_edge # update prev_edge. Note that prev_edge always has f to its right.
+
+            # update edge_dict
+            edge_dict[edge_id] = current_edge
+            edge_dict[reverse(edge_id)] = flip(rot(rot(current_edge))) # flip so that right side of all edge_dict entries are set
+
+            next_id = [id(tail(next(current_edge))), id(head(next(current_edge)))]
+            if !isnothing(right(next(current_edge)))
+                edge_dict[next_id] = next(current_edge) # next(e) has right face set
+                edge_dict[reverse(next_id)] = rev(next(current_edge)) # ensure that all entries in edge_dict have right face set.
+            else
+                edge_dict[next_id] = flip(next(current_edge)) # next(e) has left face set
+                edge_dict[reverse(next_id)] = rev(flip(next(current_edge))) # ensure that all entries in edge_dict have right face set.
+            end
+
+            prev_id = [id(tail(prev(current_edge))), id(head(prev(current_edge)))]
+            if !isnothing(right(prev(current_edge)))
+                edge_dict[prev_id] = prev(current_edge) # next(e) has right face set
+                edge_dict[reverse(prev_id)] = rev(prev(current_edge)) # ensure that all entries in edge_dict have right face set.
+            else
+                edge_dict[prev_id] = flip(prev(current_edge)) # next(e) has left face set
+                edge_dict[reverse(prev_id)] = rev(flip(prev(current_edge))) # ensure that all entries in edge_dict have right face set.
+            end
+        end
+    end
+
+    return mesh
+end
+
 vertices(mesh) = mesh.vertices
 edges(mesh) = mesh.edges
 faces(mesh) = mesh.faces
 
-"""
-    _check_consistency(mesh::PolyhedralMesh)
-
-Check the consistency of the mesh, i.e. for each edge `e`: 
-- tail(next(e)) === tail(e) 
-- left(edge) === right(next(e))
-- tail(flip(e)) === tail(e)
-- !is_primary(e) || (!isnothing(tail(e)) && !isnothing(head(e)) && (!isnothing(left(e)) || !isnothing(right(e))))
-- !is_dual(e) || (!isnothing(left(e)) && !isnothing(right(e)) && (!isnothing(head(e)) || !isnothing(tail(e))))
-"""
-function _check_consistency(mesh::PolyhedralMesh)
-    for e in edges(mesh)
-        if !(tail(next(e)) === tail(e))
-            return false
-        elseif !(left(edge) === right(next(e)))
-            return false
-        elseif !(tail(flip(e)) === tail(e))
-            return false
-        elseif !(!is_primary(e) || (!isnothing(tail(e)) && !isnothing(head(e)) && (!isnothing(left(e)) || !isnothing(right(e)))))
-            return false
-        elseif !(!is_dual(e) || (!isnothing(left(e)) && !isnothing(right(e)) && (!isnothing(head(e)) || !isnothing(tail(e)))))
-            return false
-        end
-    end
-
-    return true
-end

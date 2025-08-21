@@ -93,5 +93,48 @@ using SimplSurfs
         @test next(flip(a)) === flip(a)
         @test next(flip(b)) === flip(b)
     end
+end
 
+
+
+@testset "Polyhedral Mesh Tests" begin
+
+    @testset "Polyhedral Mesh Construction" begin
+
+        """
+            _check_consistency(mesh::PolyhedralMesh)
+
+        Check the consistency of the mesh, i.e. for each edge `e`: 
+        - tail(next(e)) === tail(e) 
+        - left(edge) === right(next(e))
+        - tail(flip(e)) === tail(e)
+        - !is_primary(e) || (!isnothing(tail(e)) && !isnothing(head(e)) && (!isnothing(left(e)) || !isnothing(right(e))))
+        - !is_dual(e) || (!isnothing(left(e)) && !isnothing(right(e)) && (!isnothing(head(e)) || !isnothing(tail(e))))
+        """
+        function _check_consistency(mesh::PolyhedralMesh)
+            for (i, e) in enumerate(edges(mesh))
+                if !(tail(next(e)) === tail(e))
+                    @warn "tail(next(e)) != tail(e): $(tail(next(e))) !== $(tail(e))"
+                    return false
+                elseif !(left(e) === right(next(e)))
+                    @warn "left(e) != right(next(e)): $(left(e)) !== $(right(next(e)))"
+                    return false
+                elseif !(tail(flip(e)) === tail(e))
+                    @warn "tail(flip(e)) != tail(e): $(tail(flip(e))) !== $(tail(e))"
+                    return false
+                elseif !(!is_primary(e) || (!isnothing(tail(e)) && !isnothing(head(e)) && (!isnothing(left(e)) || !isnothing(right(e)))))
+                    return false
+                elseif !(!is_dual(e) || (!isnothing(left(e)) && !isnothing(right(e)) && (!isnothing(head(e)) || !isnothing(tail(e)))))
+                    return false
+                end
+            end
+            return true
+        end
+
+        tetra = PolyhedralMesh([[1, 2, 3], [1, 2, 4], [1, 3, 4], [2, 3, 4]])
+        @test _check_consistency(tetra)
+        tetra_with_hole = PolyhedralMesh([[1, 2, 3], [1, 2, 4], [1, 3, 4]])
+        @test _check_consistency(tetra_with_hole)
+        @test_throws ArgumentError PolyhedralMesh([[1, 2, 3], [1, 2, 4], [1, 2, 5]])
+    end
 end
