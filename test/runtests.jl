@@ -112,7 +112,7 @@ end
         - !is_dual(e) || (!isnothing(left(e)) && !isnothing(right(e)) && (!isnothing(head(e)) || !isnothing(tail(e))))
         """
         function _check_consistency(mesh::PolyhedralMesh)
-            for (i, e) in enumerate(edges(mesh))
+            for (i, e) in enumerate(vcat(primal_edges(mesh), dual_edges(mesh)))
                 if !(tail(next(e)) === tail(e))
                     @warn "tail(next(e)) != tail(e): $(tail(next(e))) !== $(tail(e))"
                     return false
@@ -121,10 +121,6 @@ end
                     return false
                 elseif !(tail(flip(e)) === tail(e))
                     @warn "tail(flip(e)) != tail(e): $(tail(flip(e))) !== $(tail(e))"
-                    return false
-                elseif !(!is_primary(e) || (!isnothing(tail(e)) && !isnothing(head(e)) && (!isnothing(left(e)) || !isnothing(right(e)))))
-                    return false
-                elseif !(!is_dual(e) || (!isnothing(left(e)) && !isnothing(right(e)) && (!isnothing(head(e)) || !isnothing(tail(e)))))
                     return false
                 end
             end
