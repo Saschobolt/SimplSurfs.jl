@@ -364,6 +364,13 @@ Set right of `e` to `v` and return the updated edge `e`.
 """
 right!(e::PrimalEdge, v::Vertex) = tail!(rot(e), v)
 
+"""
+    is_boundary(e::PrimalEdge)
+
+Return whether `e` is a boundary edge, i.e. it has only one adjacent face. By convention, this means the `id` of its left xor right face is <= 0.
+"""
+is_boundary(e::PrimalEdge) = xor(id(left(e)) <= 0, id(right(e)) <= 0)
+
 
 """
     make_edge()
