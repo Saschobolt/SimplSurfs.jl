@@ -244,9 +244,16 @@ rot(e::DualEdge) = e.rot::PrimalEdge
 """
     rot(e::Edge)
 
-Return the edge `e` rotated by 90 degrees counterclockwise. This is the edge that has right as its tail, left as its head, tail as its left and head as its right.
+Return the edge `e` rotated by 90 degrees counterclockwise. This is the edge that has `right(e)` as its tail, `left(e)` as its head, `tail(e)` as its left and `head(e)` as its right.
 """
 rot(e::Edge) = rot(e)
+
+"""
+    invrot(e::Edge)
+
+Return the edge `e` rotated by 270 degrees counterclockwise. This is the edge that has `left(e)` as its tail, `right(e)` as its head, `head(e)` as its left and `tail(e)` as its right.
+"""
+invrot(e::Edge) = rot(rot(rot(e)))
 
 """
     flip(e::Edge)
@@ -289,6 +296,20 @@ left(e::Edge) = head(rot(e))
 Return the previous edge in counterclockwise order around `tail(e)`.
 """
 prev(e::Edge) = flip(next(flip(e)))
+
+"""
+    rnext(e::Edge)
+
+Return the next edge around the right face, i.e. the edge with `right(e)` to its right and `head(e)` as its tail.
+"""
+rnext(e::Edge) = invrot(prev(rot(e)))
+
+"""
+    lnext(e::Edge)
+
+Return the next edge around the left face, i.e. the edge with `left(e)` to its left and `head(e)` as its tail.
+"""
+lnext(e::Edge) = flip(rnext(flip(e)))
 
 """
     tail!(e::PrimalEdge, v::Vertex)
@@ -589,5 +610,15 @@ faces(mesh::PolyhedralMesh) = mesh.faces
 
 function holes(mesh::PolyhedralMesh)
 
+    nholes = 0
+    for e in primal_edges(mesh)
+        if !is_boundary(e)
+            continue
+        end
+
+        # e is a boundary edge, meaning that mesh has a hole.
+        nholes = nholes + 1
+
+    end
 end
 

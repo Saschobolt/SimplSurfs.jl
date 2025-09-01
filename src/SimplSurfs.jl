@@ -4,7 +4,7 @@ using Graphs
 using AbstractAlgebra
 using StaticArrays
 
-export Vertex, Face, Edge, PolyhedralMesh, make_edge, head, head!, tail, tail!, left, left!, right, right!, flip, rot, next, mesh, splice!, edge, is_primary, is_dual, splice!, vertices, faces, primal_edges, dual_edges, prev, is_boundary
+export Vertex, Face, Edge, PolyhedralMesh, make_edge, head, head!, tail, tail!, left, left!, right, right!, flip, rot, invrot, next, lnext, rnext, mesh, splice!, edge, is_primary, is_dual, splice!, vertices, faces, primal_edges, dual_edges, prev, is_boundary
 include("PolyhedralMesh.jl")
 
 end # module SimplSurfs
