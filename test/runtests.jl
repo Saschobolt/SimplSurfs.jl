@@ -112,14 +112,17 @@ end
         - !is_dual(e) || (!isnothing(left(e)) && !isnothing(right(e)) && (!isnothing(head(e)) || !isnothing(tail(e))))
         """
         function _check_consistency(mesh::PolyhedralMesh)
-            for (i, e) in enumerate(vcat(primal_edges(mesh), dual_edges(mesh)))
+            for (i, e) in enumerate(vcat(collect(values(edges(mesh))), collect(values(dual_edges(mesh)))))
                 if !(tail(next(e)) === tail(e))
+                    @warn "e: $e"
                     @warn "tail(next(e)) != tail(e): $(tail(next(e))) !== $(tail(e))"
                     return false
                 elseif !(left(e) === right(next(e)))
+                    @warn "e: $e"
                     @warn "left(e) != right(next(e)): $(left(e)) !== $(right(next(e)))"
                     return false
                 elseif !(tail(flip(e)) === tail(e))
+                    @warn "e: $e"
                     @warn "tail(flip(e)) != tail(e): $(tail(flip(e))) !== $(tail(e))"
                     return false
                 end
@@ -127,10 +130,20 @@ end
             return true
         end
 
-        tetra = PolyhedralMesh([[1, 2, 3], [1, 2, 4], [1, 3, 4], [2, 3, 4]])
+        tetra = tetrahedron()
         @test _check_consistency(tetra)
         tetra_with_hole = PolyhedralMesh([[1, 2, 3], [1, 2, 4], [1, 3, 4]])
         @test _check_consistency(tetra_with_hole)
         @test_throws ArgumentError PolyhedralMesh([[1, 2, 3], [1, 2, 4], [1, 2, 5]])
+        octa = octahedron()
+        @test _check_consistency(octa)
+
+        for f in faces(tetra)
+            @test length(vertices(f)) == 3
+        end
+
+        for f in faces(octa)
+            @test length(vertices(f)) == 3
+        end
     end
 end

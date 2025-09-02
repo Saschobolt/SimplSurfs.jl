@@ -83,12 +83,15 @@ end
 
 mutable struct PolyhedralMesh
     vertices::Vector{Vertex}
-    primal_edges::Vector{PrimalEdge}
-    dual_edges::Vector{DualEdge}
+    primal_edges::Dict{Tuple{Int,Int},PrimalEdge}
     faces::Vector{Face}
-    holes::Vector{Face} # convention: holes are faces with negative id
+    holes::Vector{Face}
 
-    PolyhedralMesh() = new([], [], [], [], [])
+    PolyhedralMesh() = new(Vector{Vertex}(), Dict{Tuple{Int,Int},PrimalEdge}(), Vector{Face}())
+end
+
+function Base.show(io::IO, mesh::PolyhedralMesh)
+    println(io, "Polyhedral mesh with $(length(vertices(mesh))) vertices, $(length(edges(mesh))) edges, $(length(faces(mesh))) faces.")
 end
 
 ############### Vertex functions
@@ -170,7 +173,7 @@ function Face(id::Int; edge::Union{Nothing,Edge}=nothing, mesh::Union{Nothing,Po
     end
 
     if !isnothing(edge)
-        if isnothing(tail(edge)) # if edge tail is not yet set, set edge tail to the newly created vertex
+        if isnothing(tail(edge)) # if edge tail is not yet set, set edge tail to the newly created face
             tail!(edge, f)
         else
             throw(ArgumentError("Tail of edge needs to be nothing."))
@@ -200,9 +203,21 @@ function edge!(f::Face, e::Edge)
     return f
 end
 
+"""
+    vertices(f::Face)
+
+Return the vertices incident to the face `f` in counterclockwise order around `f`.
+"""
 function vertices(f::Face)
     e = edge(f)
+    verts = [left(e)]
+    next_edge = next(e)
+    while next_edge !== e
+        push!(verts, left(next_edge))
+        next_edge = next(next_edge)
+    end
 
+    return verts
 end
 
 
@@ -348,42 +363,60 @@ end
 
 Set the head of `e` to `f` and return the updated edge `e`.
 """
-head!(e::PrimalEdge, v::Vertex) = tail!(rot(rot(e)), v)
+function head!(e::PrimalEdge, v::Vertex)
+    tail!(rot(rot(e)), v)
+    return e
+end
 
 """
     head!(e::DualEdge, f::Face)
 
 Set the head of `e` to `f` and return the updated edge `e`.
 """
-head!(e::DualEdge, f::Face) = tail!(rot(rot(e)), f)
+function head!(e::DualEdge, f::Face)
+    tail!(rot(rot(e)), f)
+    return e
+end
 
 """
     left!(e::PrimalEdge, f::Face)
 
 Set left of `e` to `f` and return the updated edge `e`.
 """
-left!(e::PrimalEdge, f::Face) = tail!(rot(rot(rot(e))), f)
+function left!(e::PrimalEdge, f::Face)
+    tail!(rot(rot(rot(e))), f)
+    return e
+end
 
 """
     left!(e::DualEdge, v::Vertex)
 
 Set left of `e` to `v` and return the updated edge `e`.
 """
-left!(e::DualEdge, v::Vertex) = tail!(rot(rot(rot(e))), v)
+function left!(e::DualEdge, v::Vertex)
+    tail!(rot(rot(rot(e))), v)
+    return e
+end
 
 """
     right!(e::PrimalEdge, f::Face)
 
 Set right of `e` to `f` and return the updated edge `e`.
 """
-right!(e::PrimalEdge, f::Face) = tail!(rot(e), f)
+function right!(e::PrimalEdge, f::Face)
+    tail!(rot(e), f)
+    return e
+end
 
 """
     right!(e::PrimalEdge, v::Vertex)
 
 Set right of `e` to `v` and return the updated edge `e`.
 """
-right!(e::PrimalEdge, v::Vertex) = tail!(rot(e), v)
+function right!(e::PrimalEdge, v::Vertex)
+    tail!(rot(e), v)
+    return e
+end
 
 """
     is_boundary(e::PrimalEdge)
@@ -503,13 +536,14 @@ function PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}; labe
     end
 
     mesh = PolyhedralMesh() # empty mesh that is updated
-    vertices = [Vertex(id, mesh=mesh, label=labels[id]) for id in vert_ids]
-    mesh.vertices = vertices
+    verts = [Vertex(id, mesh=mesh, label=labels[id]) for id in vert_ids]
+    mesh.vertices = verts
 
     null_face = Face(0) # default face that is set when left or right is not known - the "outside"/surrounding space of the mesh
     null_face.mesh = mesh
 
-    edge_dict = Dict{SVector{2,Int},PrimalEdge}() # dict that keeps track of which primary edges are already in the mesh. Convention: All 
+    primal_edges = Dict{Tuple{Int,Int},PrimalEdge}() # primal edge dict. For each primal edge one representative is in primal_edges. During this constructor, right of each primal edge is expected to be set. The keys are expected to be sorted.
+
 
     for (i, f) in enumerate(faces)
         face = Face(i, mesh=mesh)
@@ -519,40 +553,27 @@ function PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}; labe
         for (it, j) in enumerate(vcat(eachindex(f), [1]))
             tail_id = f[j]
             head_id = f[mod1(j + 1, length(f))]
-            edge_id = [tail_id, head_id]
+            rev_flag = tail_id > head_id # keys of primal_edge dict are expected to be sorted. This flag indicates that the current edge goes from a vertex with greater id to a vertex with smaller id and thus has to be reversed when updating the edge dict.
+            edge_id = rev_flag ? reverse((tail_id, head_id)) : (tail_id, head_id)
 
-            if !haskey(edge_dict, edge_id)
+            if !haskey(primal_edges, edge_id)
                 # case 1: edge is not already processed. Construct new edge. Set tail, head and right face.
                 current_edge = make_edge(mesh)
-                tail!(current_edge, vertices[tail_id])
-                head!(current_edge, vertices[head_id])
+                tail!(current_edge, verts[tail_id])
+                head!(current_edge, verts[head_id])
                 right!(current_edge, face)
                 left!(current_edge, null_face)
 
-                # add edge and all its related edges to mesh.edges
-                mesh.primal_edges = vcat(mesh.primal_edges, [current_edge,
-                    rot(rot(current_edge)),
-                    flip(current_edge),
-                    rot(rot(flip(current_edge)))
-                ])
-
-                mesh.dual_edges = vcat(mesh.dual_edges, [rot(current_edge),
-                    rot(rot(rot(current_edge))),
-                    rot(flip(current_edge)),
-                    rot(rot(rot(flip(current_edge))))
-                ])
+                # add edge to primal_edges
+                primal_edges[edge_id] = rev_flag ? rev(current_edge) : current_edge
 
                 # set edge entries of tail vertex and right face, if it isn't already set
-                if !isdefined(vertices[tail_id], :edge)
-                    edge!(vertices[tail_id], current_edge)
+                if !isdefined(verts[tail_id], :edge)
+                    edge!(verts[tail_id], current_edge)
                 end
-                if !isdefined(face, :edge)
-                    edge!(face, rot(current_edge))
-                end
-
-            elseif haskey(edge_dict, edge_id) && it != length(f) + 1
+            elseif haskey(primal_edges, edge_id) && it != length(f) + 1
                 # case 2: edge was already processed in another face. By behaviour defined above, the right side is set to this different face
-                current_edge = flip(edge_dict[edge_id]) # flip, so that left face is set and right set is null face
+                current_edge = rev_flag ? rev(flip(primal_edges[edge_id])) : flip(primal_edges[edge_id]) # flip, so that left face is set and right set is null face
 
                 if right(current_edge) !== null_face # check consistency of face list. If right is not the null face, there is an edge with at least three incident faces.
                     throw(ArgumentError("Face list is not consistent. There is at least one edge with three or more faces incident to it."))
@@ -561,10 +582,14 @@ function PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}; labe
                 right!(current_edge, face)
             else
                 # case 3: edge is the first edge around the current face f.
-                current_edge = edge_dict[edge_id] # right side is set. Either left or right is current face.
+                current_edge = rev_flag ? rev(primal_edges[edge_id]) : primal_edges[edge_id] # right side is set. Either left or right is current face.
                 if right(current_edge) !== face
                     current_edge = flip(current_edge) # flip edge, if right is not current face.
                 end
+            end
+
+            if !isdefined(face, :edge)
+                edge!(face, rot(current_edge))
             end
 
             # splice prev(edge) with rot(rot(prev_edge)). 
@@ -573,52 +598,123 @@ function PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}; labe
                 splice!(prev(current_edge), rot(rot(prev_edge)))
             end
 
+            edgeloop = PrimalEdge[current_edge]
+            bla = next(current_edge)
+            while bla !== current_edge
+                pushfirst!(edgeloop, bla)
+                bla = next(bla)
+            end
 
             prev_edge = current_edge # update prev_edge. Note that prev_edge always has f to its right.
 
             # update edge_dict
-            edge_dict[edge_id] = current_edge
-            edge_dict[reverse(edge_id)] = flip(rot(rot(current_edge))) # flip so that right side of all edge_dict entries are set
+            primal_edges[edge_id] = rev_flag ? rev(current_edge) : current_edge
 
-            next_id = [id(tail(next(current_edge))), id(head(next(current_edge)))]
+            next_id = (id(tail(next(current_edge))), id(head(next(current_edge))))
+            rev_flag_next = next_id[1] > next_id[2]
+            next_id = rev_flag_next ? reverse(next_id) : next_id
             if right(next(current_edge)) !== null_face
-                edge_dict[next_id] = next(current_edge) # next(e) has right face set
-                edge_dict[reverse(next_id)] = rev(next(current_edge)) # ensure that all entries in edge_dict have right face set.
+                primal_edges[next_id] = rev_flag_next ? rev(next(current_edge)) : next(current_edge) # next(e) has right face set
             else
-                edge_dict[next_id] = flip(next(current_edge)) # next(e) has left face set
-                edge_dict[reverse(next_id)] = rev(flip(next(current_edge))) # ensure that all entries in edge_dict have right face set.
+                primal_edges[next_id] = rev_flag_next ? rev(flip(next(current_edge))) : flip(next(current_edge)) # next(e) has left face set
             end
 
-            prev_id = [id(tail(prev(current_edge))), id(head(prev(current_edge)))]
+            prev_id = (id(tail(prev(current_edge))), id(head(prev(current_edge))))
+            rev_flag_prev = prev_id[1] > prev_id[2]
+            prev_id = rev_flag_prev ? reverse(prev_id) : prev_id
             if right(prev(current_edge)) !== null_face
-                edge_dict[prev_id] = prev(current_edge) # next(e) has right face set
-                edge_dict[reverse(prev_id)] = rev(prev(current_edge)) # ensure that all entries in edge_dict have right face set.
+                primal_edges[prev_id] = rev_flag_prev ? rev(prev(current_edge)) : prev(current_edge) # next(e) has right face set
             else
-                edge_dict[prev_id] = flip(prev(current_edge)) # next(e) has left face set
-                edge_dict[reverse(prev_id)] = rev(flip(prev(current_edge))) # ensure that all entries in edge_dict have right face set.
+                primal_edges[prev_id] = rev_flag_prev ? rev(flip(prev(current_edge))) : flip(prev(current_edge)) # next(e) has left face set
             end
         end
     end
 
+    mesh.primal_edges = primal_edges
+
     return mesh
 end
 
+"""
+    vertices(mesh::PolyhedralMesh)
+
+Return the vertices of `mesh` as a vector.
+"""
 vertices(mesh::PolyhedralMesh) = mesh.vertices
-primal_edges(mesh::PolyhedralMesh) = mesh.primal_edges
-dual_edges(mesh::PolyhedralMesh) = mesh.dual_edges
+
+"""
+    primal_edges(mesh::PolyhedralMesh)
+
+Return one representative of each primal edge of `mesh`.
+
+Each primal edge of mesh is a group of four primal edges due to flipping and reversing.
+"""
+edges(mesh::PolyhedralMesh) = mesh.primal_edges
+
+"""
+    dual_edges(mesh::PolyhedralMesh)
+
+Return one representative of each dual edge of `mesh`.
+
+Each dual edge of mesh is a group of four dual edges due to flipping and reversing.
+"""
+dual_edges(mesh::PolyhedralMesh) = Dict((id(right(e)), id(left(e))) => rot(e) for e in values(edges(mesh)))
+
+"""
+    faces(mesh::PolyhedralMesh)
+
+Return the faces of `mesh` as a vector.
+"""
 faces(mesh::PolyhedralMesh) = mesh.faces
 
-function holes(mesh::PolyhedralMesh)
+"""
+    holes!(mesh::PolyhedralMesh; recompute::Bool=false)
 
+Return the holes of `mesh` as a vector. 
+If recompute is set to `true`, the holes will be recomputed. Otherwise the stored value in the mesh field `:holes` will be returned.
+"""
+function holes!(mesh::PolyhedralMesh; recompute::Bool=false)
+    if isdefined(mesh, :holes) && !recompute
+        return mesh.holes
+    end
+
+    holes = Face[]
     nholes = 0
-    for e in primal_edges(mesh)
+
+    edges_to_go = Set(values(edges(mesh)))
+
+    for e in edges_to_go
         if !is_boundary(e)
             continue
         end
 
         # e is a boundary edge, meaning that mesh has a hole.
         nholes = nholes + 1
+        @info "================"
+        @info "hole $nholes"
 
+        hole = Face(-nholes, mesh=mesh)
+        push!(holes, hole)
+
+        hole_right_flag = id(right(e)) <= 0 # flag that indicates that the hole is on the right of e
+
+        hole_right_flag ? right!(e, hole) : left!(e, hole)
+        hole_right_flag ? edge!(hole, rot(e)) : edge!(hole, invrot(e))
+
+        current_edge = e
+        next_edge = hole_right_flag ? rnext(e) : lnext(e)
+        @info "entering loop with current edge $e"
+        while next_edge !== e
+            current_edge = next_edge
+            @info "current_edge $current_edge"
+            setdiff!(edges_to_go, [current_edge, rev(current_edge), flip(current_edge), rev(flip(current_edge))])
+            hole_right_flag ? right!(current_edge, hole) : left!(current_edge, hole)
+            next_edge = hole_right_flag ? rnext(current_edge) : lnext(current_edge)
+            @info "next_edge $next_edge"
+        end
     end
-end
 
+    mesh.holes = holes
+
+    return holes
+end
