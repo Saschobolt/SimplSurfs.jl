@@ -7,6 +7,8 @@ mutable struct SimplicialSurface
                 throw(ArgumentError("All faces in a simplicial surface must be triangles"))
             end
         end
+
+        return new(mesh)
     end
 end
 
