@@ -144,6 +144,8 @@ end
 
         for f in faces(octa)
             @test length(vertices(f)) == 3
-        end
+                end
     end
 end
+
+include("simpsurf_test.jl")
