@@ -4,7 +4,7 @@
 mutable struct Vertex
     id::Int
     label::Union{Int,String}
-    coord::Union{Nothing,Vector{Union{AbstractAlgebra.RingElem,Number}}}
+    coord::Union{Nothing,Vector{Union{AbstractAlgebra.RingElem,Number}}} # TODO: Turn vertex into parametric type with dimension and coord entries as parameters
     edge::Any # Edge    # a primal edge with this vertex as tail
     mesh::Any # PolyhedralMesh
 
@@ -128,6 +128,12 @@ id(v::Vertex) = v.id
 label(v::Vertex) = v.label
 mesh(v::Vertex) = v.mesh::PolyhedralMesh
 edge(v::Vertex) = v.edge::PrimalEdge
+coord(v::Vertex) = v.coord
+
+function coord!(v::Vertex, coordinate::Union{Nothing,Vector{<:Union{<:AbstractAlgebra.RingElem,<:Number}}})
+    v.coord = coordinate
+    return v
+end
 
 """
     edge!(v::Vertex, e::Edge)
@@ -666,6 +672,8 @@ dual_edges(mesh::PolyhedralMesh) = Dict((id(right(e)), id(left(e))) => rot(e) fo
 Return the faces of `mesh` as a vector.
 """
 faces(mesh::PolyhedralMesh) = mesh.faces
+
+labels(mesh::PolyhedralMesh) = [label(v) for v in vertices(mesh)]
 
 """
     holes!(mesh::PolyhedralMesh; recompute::Bool=false)
