@@ -4,6 +4,7 @@ using Graphs
 using AbstractAlgebra
 using StaticArrays
 using RigidityTheoryTools
+using GeometryBasics
 
 export Vertex, id, coord, Face, Edge, PolyhedralMesh, labels, make_edge, head, head!, tail, tail!, left, left!, right, right!, flip, rot, invrot, next, lnext, rnext, mesh, splice!, edge, is_primary, is_dual, splice!, vertices, faces, edges, dual_edges, prev, is_boundary, holes!, labels
 include("PolyhedralMesh.jl")
