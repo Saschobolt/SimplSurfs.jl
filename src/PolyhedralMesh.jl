@@ -1,21 +1,21 @@
 ############################################################################
 # types
 ############################################################################
-mutable struct Vertex
+mutable struct Vertex{PositionDim,PositionType}
     id::Int
     label::Union{Int,String}
-    coord::Union{Nothing,Vector{Union{AbstractAlgebra.RingElem,Number}}} # TODO: Turn vertex into parametric type with dimension and coord entries as parameters
+    position::Point{PositionDim,PositionType} # TODO: Turn vertex into parametric type with dimension and coord entries as parameters
     edge::Any # Edge    # a primal edge with this vertex as tail
     mesh::Any # PolyhedralMesh
 
-    Vertex() = new()
+    Vertex{PositionDim,PositionType}() where {PositionDim,PositionType} = new{PositionDim,PositionType}()
 end
 
 function Base.show(io::IO, v::Vertex)
     if id(v) != 0
-        print(io, "V$(v.id) ($(v.label))")
+        print(io, "$(typeof(v)) $(id(v)) `$(label(v))`")
     else
-        print(io, "null vertex")
+        print(io, "null $(typeof(v))")
     end
 end
 
@@ -81,36 +81,39 @@ function Base.show(io::IO, e::Edge)
     println(io, " "^pad_tail * s_tail)
 end
 
-mutable struct PolyhedralMesh
-    vertices::Vector{Vertex}
+mutable struct PolyhedralMesh{PositionDim,PositionType}
+    vertices::Vector{Vertex{PositionDim,PositionType}}
     primal_edges::Dict{Tuple{Int,Int},PrimalEdge}
     faces::Vector{Face}
     holes::Vector{Face}
 
-    PolyhedralMesh() = new(Vector{Vertex}(), Dict{Tuple{Int,Int},PrimalEdge}(), Vector{Face}())
+    PolyhedralMesh{PositionDim,PositionType}() where {PositionDim,PositionType} = new{PositionDim,PositionType}(Vector{Vertex}(), Dict{Tuple{Int,Int},PrimalEdge}(), Vector{Face}())
 end
 
 function Base.show(io::IO, mesh::PolyhedralMesh)
-    println(io, "Polyhedral mesh with $(length(vertices(mesh))) vertices, $(length(edges(mesh))) edges, $(length(faces(mesh))) faces.")
+    println(io, "$(typeof(mesh)) with $(length(vertices(mesh))) vertices, $(length(edges(mesh))) edges, $(length(faces(mesh))) faces.")
 end
 
 ############### Vertex functions
 # constructor. Construct a new vertex with id, label, edge, coord and mesh. Vertex will be tail of edge. If tail of edge is not nothing, an error is thrown
-function Vertex(id::Int; label::Union{Nothing,Int,String}=nothing, edge::Union{Nothing,Edge}=nothing, coord::Union{Nothing,Vector{Union{AbstractAlgebra.RingElem,Number}}}=nothing, mesh::Union{Nothing,PolyhedralMesh}=nothing)
-    v = Vertex()
+function Vertex{PositionDim,PositionType}(id::Int; label::Union{Nothing,Int,String}=nothing, edge::Union{Nothing,Edge}=nothing, position::Union{Nothing,Point{PositionDim,PositionType}}=nothing, mesh::Union{Nothing,PolyhedralMesh}=nothing) where {PositionDim,PositionType}
+    if !isnothing(position)
+        v = Vertex{PositionDim,PositionType}()
+        v.position = position
+    else
+        v = Vertex{PositionDim,PositionType}()
+    end
 
     v.id = id
 
     if !isnothing(label)
+        v.label = label
+    else
         v.label = id
     end
 
     if !isnothing(mesh)
         v.mesh = mesh
-    end
-
-    if !isnothing(coord)
-        v.coord = coord
     end
 
     if !isnothing(edge)
@@ -124,14 +127,22 @@ function Vertex(id::Int; label::Union{Nothing,Int,String}=nothing, edge::Union{N
     return v
 end
 
+function Vertex(id::Int; label::Union{Nothing,Int,String}=nothing, edge::Union{Nothing,Edge}=nothing, position::Union{Nothing,Point{PositionDim,PositionType}}=nothing, mesh::Union{Nothing,PolyhedralMesh{PositionDim,PositionType}}=nothing) where {PositionDim,PositionType}
+    if !isnothing(position)
+        return Vertex{PositionDim,PositionType}(id, label=label, edge=edge, position=position, mesh=mesh)
+    else
+        return Vertex{0,Any}(id, label=label, edge=edge, position=position, mesh=mesh)
+    end
+end
+
 id(v::Vertex) = v.id
 label(v::Vertex) = v.label
 mesh(v::Vertex) = v.mesh::PolyhedralMesh
 edge(v::Vertex) = v.edge::PrimalEdge
-coord(v::Vertex) = v.coord
+position(v::Vertex) = v.position
 
-function coord!(v::Vertex, coordinate::Union{Nothing,Vector{<:Union{<:AbstractAlgebra.RingElem,<:Number}}})
-    v.coord = coordinate
+function position!(v::Vertex, position)
+    v.position = position
     return v
 end
 
@@ -535,14 +546,18 @@ end
 
 ############### PolyhedralMesh functions
 # PolyhedralMesh constructor from list of face vertex lists.
-function PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...)))
+function PolyhedralMesh{PositionDim,PositionType}(faces::AbstractVector{<:AbstractVector{<:Integer}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...)), positions::Union{AbstractVector{Point{PositionDim,PositionType}},Nothing}=nothing) where {PositionDim,PositionType}
     vert_ids = sort(union(faces...))
     if vert_ids != collect(1:length(vert_ids))
         throw(ArgumentError("Vertex ids need to be consecutive integers starting from 1."))
     end
 
-    mesh = PolyhedralMesh() # empty mesh that is updated
-    verts = [Vertex(id, mesh=mesh, label=labels[id]) for id in vert_ids]
+    mesh = PolyhedralMesh{PositionDim,PositionType}() # empty mesh that is updated
+    if isnothing(positions)
+        verts = [Vertex{PositionDim,PositionType}(id, mesh=mesh, label=labels[id]) for id in vert_ids]
+    else
+        verts = [Vertex{PositionDim,PositionType}(id, mesh=mesh, label=labels[id], position=positions[id]) for id in vert_ids]
+    end
     mesh.vertices = verts
 
     null_face = Face(0) # default face that is set when left or right is not known - the "outside"/surrounding space of the mesh
@@ -640,6 +655,9 @@ function PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}; labe
 
     return mesh
 end
+
+PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}, positions::AbstractVector{Point{PositionDim,PositionType}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...))) where {PositionDim,PositionType} = PolyhedralMesh{PositionDim,PositionType}(faces, labels=labels, positions=positions)
+PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...))) = PolyhedralMesh{0,Any}(faces, labels=labels)
 
 """
     vertices(mesh::PolyhedralMesh)
