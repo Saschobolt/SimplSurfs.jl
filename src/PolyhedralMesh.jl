@@ -139,9 +139,9 @@ id(v::Vertex) = v.id
 label(v::Vertex) = v.label
 mesh(v::Vertex) = v.mesh::PolyhedralMesh
 edge(v::Vertex) = v.edge::PrimalEdge
-position(v::Vertex) = v.position
+coordinates(v::Vertex) = v.position
 
-function position!(v::Vertex, position)
+function coordinates!(v::Vertex, position)
     v.position = position
     return v
 end
@@ -546,7 +546,7 @@ end
 
 ############### PolyhedralMesh functions
 # PolyhedralMesh constructor from list of face vertex lists.
-function PolyhedralMesh{PositionDim,PositionType}(faces::AbstractVector{<:AbstractVector{<:Integer}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...)), positions::Union{AbstractVector{Point{PositionDim,PositionType}},Nothing}=nothing) where {PositionDim,PositionType}
+function PolyhedralMesh{PositionDim,PositionType}(faces::AbstractVector{<:AbstractVector{<:Integer}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...)), positions::Union{AbstractVector{Point{PositionDim}},Nothing}=nothing) where {PositionDim,PositionType}
     vert_ids = sort(union(faces...))
     if vert_ids != collect(1:length(vert_ids))
         throw(ArgumentError("Vertex ids need to be consecutive integers starting from 1."))
@@ -656,7 +656,7 @@ function PolyhedralMesh{PositionDim,PositionType}(faces::AbstractVector{<:Abstra
     return mesh
 end
 
-PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}, positions::AbstractVector{Point{PositionDim,PositionType}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...))) where {PositionDim,PositionType} = PolyhedralMesh{PositionDim,PositionType}(faces, labels=labels, positions=positions)
+PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}, positions::AbstractVector{<:Point{PositionDim,PositionType}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...))) where {PositionDim,PositionType} = PolyhedralMesh{PositionDim,PositionType}(faces, labels=labels, positions=positions)
 PolyhedralMesh(faces::AbstractVector{<:AbstractVector{<:Integer}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...))) = PolyhedralMesh{0,Any}(faces, labels=labels)
 
 """
@@ -716,8 +716,6 @@ function holes!(mesh::PolyhedralMesh; recompute::Bool=false)
 
         # e is a boundary edge, meaning that mesh has a hole.
         nholes = nholes + 1
-        @info "================"
-        @info "hole $nholes"
 
         hole = Face(-nholes, mesh=mesh)
         push!(holes, hole)
@@ -729,14 +727,11 @@ function holes!(mesh::PolyhedralMesh; recompute::Bool=false)
 
         current_edge = e
         next_edge = hole_right_flag ? rnext(e) : lnext(e)
-        @info "entering loop with current edge $e"
         while next_edge !== e
             current_edge = next_edge
-            @info "current_edge $current_edge"
             setdiff!(edges_to_go, [current_edge, rev(current_edge), flip(current_edge), rev(flip(current_edge))])
             hole_right_flag ? right!(current_edge, hole) : left!(current_edge, hole)
             next_edge = hole_right_flag ? rnext(current_edge) : lnext(current_edge)
-            @info "next_edge $next_edge"
         end
     end
 

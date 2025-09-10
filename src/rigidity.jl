@@ -1,32 +1,53 @@
 # rigidity analysis of embedded simplicial surfaces
 
-"""
-    positions!(mesh::PolyhedralMesh{PositionDim,PositionType}, coordinate_matrix::AbstractMatrix{PositionType}) where {PositionDim,PositionType}
-
-
-Set the vertex positions of `mesh` to the columns of the matrix `coordinate_matrix`
-"""
-function positions!(mesh::PolyhedralMesh{PositionDim,PositionType}, coordinate_matrix::AbstractMatrix{T}) where {PositionDim,PositionType,T<:Number}
-    for v in vertices(mesh)
-        position!(v, Point(coordinate_matrix[:, id(v)]...))
+function coordinates!(mesh::PolyhedralMesh{PositionDim,PositionType}, positions::AbstractVector{<:Point{PositionDim}}) where {PositionDim,PositionType}
+    for (i, v) in enumerate(vertices(mesh))
+        coordinates!(v, positions[i])
     end
 
     return mesh
 end
-positions!(surf::SimplicialSurface, coordinate_matrix::AbstractMatrix{T}) where T<:Number = positions!(surf.mesh, coordinate_matrix)
 
 """
-    coord(mesh::PolyhedralMesh)
+    coordinates!(mesh::PolyhedralMesh{PositionDim,PositionType}, coordinate_matrix::AbstractMatrix{PositionType}) where {PositionDim,PositionType}
+
+
+Set the vertex positions of `mesh` to the columns of the matrix `coordinate_matrix`
+"""
+function coordinates!(mesh::PolyhedralMesh{PositionDim,PositionType}, coordinate_matrix::AbstractMatrix{T}) where {PositionDim,PositionType,T<:Number}
+    for v in vertices(mesh)
+        coordinates!(v, Point(coordinate_matrix[:, id(v)]...))
+    end
+
+    return mesh
+end
+coordinates!(surf::SimplicialSurface, coordinate_matrix::AbstractMatrix{T}) where T<:Number = coordinates!(surf.mesh, coordinate_matrix)
+
+"""
+    coordinates(mesh::PolyhedralMesh)
+
+Return the vertex positions of the vertices of `mesh`.
+"""
+coordinates(mesh::PolyhedralMesh) = [coordinates(v) for v in vertices(mesh)]
+coordintes(surf::SimplicialSurface) = coordinates(mesh(surf))
+
+"""
+    coordinate_matrix(mesh::PolyhedralMesh)
 
 Return the coordinate matrix of `mesh`. The coordinates of the vertices are the columns of the returned matrix.
 """
-function positions(mesh::PolyhedralMesh)
-    return hcat([Vector(position(v)) for v in sort(vertices(mesh), by=id)]...)
+function coordinate_matrix(mesh::PolyhedralMesh)
+    return hcat([Vector(coordinates(v)) for v in sort(vertices(mesh), by=id)]...)
 end
-positions(surf::SimplicialSurface) = positions(surf.mesh)
+coordinate_matrix(surf::SimplicialSurface) = coordinate_matrix(surf.mesh)
 
-function Graphs.Graph(mesh::PolyhedralMesh)
-    g = Graph()
+"""
+    graph(mesh::PolyhedralMesh)
+
+Return the primal graph of `mesh`.
+"""
+function graph(mesh::PolyhedralMesh)
+    g = Graphs.Graph()
 
     for v in vertices(mesh)
         add_vertex!(g)
@@ -38,6 +59,6 @@ function Graphs.Graph(mesh::PolyhedralMesh)
 
     return g
 end
-Graphs.Graph(surf::SimplicialSurface) = Graph(surf.mesh)
+graph(surf::SimplicialSurface) = Graph(surf.mesh)
 
-RigidityTheoryTools.Framework(mesh::PolyhedralMesh) = RigidityTheoryTools.Framework(Graph(mesh), positions(mesh), labels(mesh))
+RigidityTheoryTools.Framework(mesh::PolyhedralMesh) = RigidityTheoryTools.Framework(graph(mesh), coordinate_matrix(mesh), labels(mesh))
