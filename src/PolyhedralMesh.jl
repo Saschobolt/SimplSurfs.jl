@@ -178,6 +178,37 @@ end
 # comparison
 Base.:(==)(v1::Vertex, v2::Vertex) = id(v1) == id(v2) && v1.mesh === v2.mesh
 
+"""
+    primal_edges(v::Vertex)
+
+Return the incident edges to `v` in counterclockwise order around `v`.
+"""
+function primal_edges(v::Vertex)
+    e = edge(v)
+    edge_vec = PrimalEdge[e]
+    next_edge = next(e)
+    while next_edge !== e
+        push!(edge_vec, next_edge)
+        next_edge = next(next_edge)
+    end
+    return edge_vec
+end
+
+"""
+    faces(v::Vertex)
+
+Return the incident faces of the vertex `v` in order around `v`.
+"""
+faces(v::Vertex) = left.(primal_edges(v))
+
+"""
+    neighbors(v::Vertex)
+
+Return the neighboring vertices to v in order around `v`.
+"""
+neighbors(v::Vertex) = head.(primal_edges(v))
+
+
 ############### Face functions
 # constructor. Construct a new face with id, edge and mesh. If tail of edge is not nothing, an error is thrown.
 function Face(id::Int; edge::Union{Nothing,Edge}=nothing, mesh::Union{Nothing,PolyhedralMesh}=nothing)
@@ -236,6 +267,36 @@ function vertices(f::Face)
 
     return verts
 end
+
+"""
+    dual_edges(f::Face)
+
+Return the dual edges around `f` in order around `f`.
+"""
+function dual_edges(f::Face)
+    e = edge(f)
+    edge_vec = DualEdge[e]
+    next_edge = next(e)
+    while next_edge !== e
+        push!(edge_vec, next_edge)
+        next_edge = next(next_edge)
+    end
+    return edge_vec
+end
+
+"""
+    primal_edges(f::Face)
+
+Return the primal edges having `f` as left face in order around `f`.
+"""
+primal_edges(f::Face) = rot.(dual_edges(f))
+
+"""
+    neighbors(f::Face)
+
+Return the adjacent faces of `f` in order around `f`.
+"""
+neighbors(f::Face) = head.(dual_edges(f))
 
 
 ############### Edge functions
@@ -441,6 +502,20 @@ end
 Return whether `e` is a boundary edge, i.e. it has only one adjacent face. By convention, this means the `id` of its left xor right face is <= 0.
 """
 is_boundary(e::PrimalEdge) = xor(id(left(e)) <= 0, id(right(e)) <= 0)
+
+"""
+    faces(e::PrimalEdge)
+
+Return the incident faces of the primal edge `e`.
+"""
+faces(e::PrimalEdge) = filter(f -> id(f) >= 0, [left(e), right(e)])
+
+"""
+    vertices(e::PrimalEdge)
+
+Return head and tail vertices of `e`.
+"""
+vertices(e::PrimalEdge) = [tail(e), head(e)]
 
 
 """
