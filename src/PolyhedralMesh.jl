@@ -814,3 +814,10 @@ function holes!(mesh::PolyhedralMesh; recompute::Bool=false)
 
     return holes
 end
+
+"""
+    embedding_dim(mesh::PolyhedralMesh{PositionDim}) where {PositionDim}
+
+Return the dimension of the space into which `mesh` is embedded.
+"""
+embedding_dim(mesh::PolyhedralMesh{PositionDim}) where {PositionDim} = PositionDim

@@ -32,6 +32,7 @@ labels(surf::SimplicialSurface) = [label(v) for v in vertices(surf)]
 edges(surf::SimplicialSurface) = edges(surf.mesh)
 faces(surf::SimplicialSurface) = faces(surf.mesh)
 holes!(surf::SimplicialSurface) = holes!(surf.mesh)
+embedding_dim(surf::SimplicialSurface) = embedding_dim(surf.mesh)
 
 function Base.show(io::IO, surf::SimplicialSurface)
     print(io, "Simplicial surface with $(length(vertices(surf))) vertices, $(length(edges(surf))) edges, $(length(faces(surf))) faces.")
