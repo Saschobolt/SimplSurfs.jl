@@ -5,7 +5,7 @@ using SimplSurfs
 @testset "Quad-Edge Data Structure Tests" begin
 
     @testset "make_edge: Pointer Consistency" begin
-        mesh = PolyhedralMesh()
+        mesh = PolyhedralMesh{0,Any}()
         e = make_edge(mesh)
 
         # Test rotational pointers
@@ -26,7 +26,7 @@ using SimplSurfs
     end
 
     @testset "Data Assignment and Accessors" begin
-        mesh = PolyhedralMesh()
+        mesh = PolyhedralMesh{0,Any}()
         e = make_edge(mesh)
 
         v1 = Vertex(1, mesh=mesh)
@@ -57,7 +57,7 @@ using SimplSurfs
     end
 
     @testset "splice!: Joining and Splitting Rings" begin
-        mesh = PolyhedralMesh()
+        mesh = PolyhedralMesh{0,Any}()
         v1 = Vertex(1, mesh=mesh)
         v2 = Vertex(2, mesh=mesh)
 
@@ -144,8 +144,42 @@ end
 
         for f in faces(octa)
             @test length(vertices(f)) == 3
-                end
+        end
     end
 end
 
-include("simpsurf_test.jl")
+@testset "Rigidity Tests" begin
+    @testset "Kabsch Algorithm: 100 Points in R³ (Perfect Fit)" begin
+        ## 1. SETUP: Define problem size and parameters
+        num_points = 100
+        dimension = 3
+
+        ## 2. GENERATE a known "true" transformation
+        # Create a random, proper rotation matrix
+        R_true, _ = qr(randn(dimension, dimension))
+        if det(R_true) < 0
+            # Ensure it's a proper rotation (determinant of +1)
+            R_true = R_true * Diagonal([1, 1, -1])
+        end
+        # Create a random translation vector
+        t_true = 100 .* (rand(dimension) .- 0.5)
+
+        ## 3. CREATE the initial set of "moving" points (P)
+        P = 20 .* randn(dimension, num_points)
+
+        ## 4. CREATE the "reference" point set (Q)
+        # Apply the exact transformation with no noise.
+        Q = R_true * P .+ t_true
+
+        ## 5. RUN the Kabsch algorithm
+        (R_calc, t_calc, rmsd_val) = kabsch(P, Q)
+
+        ## 6. VERIFY the results
+        # The calculated transformation should be nearly identical to the true one.
+        @test R_calc ≈ R_true
+        @test t_calc ≈ t_true
+
+        # The RMSD should be effectively zero since there is no noise.
+        @test rmsd_val ≈ 0.0 atol = 1e-12
+    end
+end
