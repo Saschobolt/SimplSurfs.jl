@@ -143,7 +143,7 @@ transform_iso!(surf::SimplicialSurface, A::AbstractMatrix, b::AbstractVector) = 
 """
     kabsch(P::AbstractMatrix, Q::AbstractMatrix; correct_reflection::Bool=true)
 
-Compute the optimal rigid transformation (isometry + translation) that aligns the point set `P` to the point set `Q` in a least-squares sense using the Kabsch algorithm and return the rmsd. The points are given as columns of the matrices `P` and `Q`. If `correct_reflection` is true, then the function will only return rotations.
+Compute the optimal rigid transformation (isometry + translation) that aligns the point set `P` to the point set `Q` in a least-squares sense using the Kabsch algorithm and return the rmsd. The points are given as columns of the matrices `P` and `Q`. If `correct_reflection` is `true`, the function will only return rotations.
 
 # Examples
 ```jldoctest
@@ -202,15 +202,15 @@ randn
 """
     kabsch(points::AbstractVector{<:Point{PositionDim}}, target::AbstractVector{<:Point{PositionDim}}; correct_reflection::Bool=true) where {PositionDim}
 
-Compute the optimal rigid transformation (rotation + translation) that aligns `points` to `target` in a least-squares sense using the Kabsch algorithm.
+Compute the optimal rigid transformation (rotation + translation) that aligns `points` to `target` in a least-squares sense using the Kabsch algorithm. If `correct_reflection` is `true`, the function will only return rotations.
 """
 function kabsch(points::AbstractVector{<:Point{PositionDim}}, target::AbstractVector{<:Point{PositionDim}}; correct_reflection::Bool=true) where {PositionDim}
     # see https://www.wikiwand.com/en/articles/Kabsch_algorithm. We do everything transposed compared to the wiki article.
     @assert length(points) == length(target) "Point sets must have the same number of points."
     n = length(points)
 
-    P = hcat(Vector.(points)...)'  # n × PositionDim
-    Q = hcat(Vector.(target)...)'  # n × PositionDim
+    P = hcat(Vector.(points)...)  # n × PositionDim
+    Q = hcat(Vector.(target)...)  # n × PositionDim
 
     return kabsch(P, Q, correct_reflection=correct_reflection)
 end
