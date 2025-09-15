@@ -29,9 +29,9 @@ end
 
 function Base.show(io::IO, f::Face)
     if id(f) > 0
-        print(io, "F $(f.id)")
+        print(io, "F$(f.id) $([label(v) for v in vertices(f)])")
     elseif id(f) < 0
-        print(io, "hole $(f.id)")
+        print(io, "hole $(f.id) $([label(v) for v in vertices(f)])")
     else
         print(io, "null face")
     end
@@ -692,13 +692,6 @@ function PolyhedralMesh{PositionDim,PositionType}(faces::AbstractVector{<:Abstra
             # prev_edge is the last edge around the face, thus rot(rot(prev_edge)) has same tail as edge and face as left face. Thus next(rot(rot(prev_edge))) should be edge. This is achieved by splice!(prev(e), rot(rot(prev_edge)))
             if !isnothing(prev_edge) && next(rot(rot(prev_edge))) !== current_edge
                 splice!(prev(current_edge), rot(rot(prev_edge)))
-            end
-
-            edgeloop = PrimalEdge[current_edge]
-            bla = next(current_edge)
-            while bla !== current_edge
-                pushfirst!(edgeloop, bla)
-                bla = next(bla)
             end
 
             prev_edge = current_edge # update prev_edge. Note that prev_edge always has f to its right.

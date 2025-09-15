@@ -27,6 +27,8 @@ end
 SimplicialSurface(faces::AbstractVector{<:AbstractVector{<:Integer}}, positions::AbstractVector{Point{PositionDim,PositionType}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...))) where {PositionDim,PositionType} = SimplicialSurface{PositionDim,PositionType}(faces, labels=labels, positions=positions)
 SimplicialSurface(faces::AbstractVector{<:AbstractVector{<:Integer}}; labels::AbstractVector{<:Union{Int,String}}=sort(union(faces...))) = SimplicialSurface{0,Any}(faces, labels=labels)
 
+mesh(surf::SimplicialSurface) = surf.mesh
+
 vertices(surf::SimplicialSurface) = vertices(surf.mesh)
 labels(surf::SimplicialSurface) = [label(v) for v in vertices(surf)]
 edges(surf::SimplicialSurface) = edges(surf.mesh)
