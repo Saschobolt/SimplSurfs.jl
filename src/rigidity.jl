@@ -29,7 +29,7 @@ coordinates!(surf::SimplicialSurface, coordinate_matrix::AbstractMatrix{T}) wher
 Return the vertex positions of the vertices of `mesh`.
 """
 coordinates(mesh::PolyhedralMesh) = [coordinates(v) for v in vertices(mesh)]
-coordintes(surf::SimplicialSurface) = coordinates(mesh(surf))
+coordinates(surf::SimplicialSurface) = coordinates(mesh(surf))
 
 """
     coordinate_matrix(mesh::PolyhedralMesh)
