@@ -46,6 +46,9 @@ function plot_meshes(meshes::Vector{<:PolyhedralMesh};
     colors::AbstractVector{<:GLMakie.Colorant}=GLMakie.RGBf[],
     title::String="Polyhedral Meshes",
     show_labels::Bool=false,
+    show_edges::Bool=true,
+    edge_color=GLMakie.RGBf(0, 0, 0),
+    edge_linewidth=1.5,
     kwargs...)
 
     # Create the figure and axis ONCE.
@@ -73,6 +76,13 @@ function plot_meshes(meshes::Vector{<:PolyhedralMesh};
         # We pass the single color for this mesh via the `color` keyword.
         me = GeometryBasics.mesh(m; face_colors=[mesh_color for f in faces(m)])
         GLMakie.mesh!(ax, me; color=mesh_color)
+
+        if show_edges
+            GLMakie.wireframe!(ax, me;
+                color=edge_color,
+                linewidth=edge_linewidth,
+            )
+        end
 
         if show_labels
             vertex_positions = coordinates(m)
