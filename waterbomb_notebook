@@ -1,0 +1,150 @@
+### A Pluto.jl notebook ###
+# v0.20.18
+
+using Markdown
+using InteractiveUtils
+
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    #! format: off
+    return quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+    #! format: on
+end
+
+# ╔═╡ 760a7ad0-92f0-11f0-05f9-ff782cbc434e
+begin
+    import Pkg
+    Pkg.activate(".")
+    using SimplSurfs
+end
+
+# ╔═╡ 5ab6e6bb-004d-4953-8b7b-f948ffc6279a
+begin
+	using PlutoUI
+	using GLMakie
+end
+
+# ╔═╡ cbd055dd-197f-4cb5-b3c2-236a359c9d3a
+md"""
+# Global Setup
+"""
+
+# ╔═╡ 66c1a498-adf3-46cf-b4b1-a8a74224da6a
+a = @bind a PlutoUI.Slider(0:0.05:1.99;default=1,show_value=true)
+
+# ╔═╡ 475548bc-b0e2-461d-8347-a15363ef7a35
+b = @bind b PlutoUI.Slider(0:0.01:1.99;default=sqrt(2),show_value=true)
+
+# ╔═╡ 001b9fda-bd17-46a8-bcd8-f4d0d4a7a025
+d = @bind d PlutoUI.Slider(0:0.05:1.99;default=1,show_value=true)
+
+# ╔═╡ 0ba3d464-52e3-4585-baeb-377ee0fdeb50
+md"""
+## Setup Cell 1
+"""
+
+# ╔═╡ d49deeff-5cb7-49f4-8e6d-48e63d34ffc2
+r1 = @bind r_cell1 PlutoUI.Slider(0:0.05:1.99;default=1,show_value=true)
+
+# ╔═╡ d93d4dd0-e682-4728-973e-ee404697480f
+s1 = @bind s_cell1 PlutoUI.Slider(0:0.01:1.99;default=sqrt(2),show_value=true)
+
+# ╔═╡ 772a6bc5-7343-40d0-b3c3-da1f5e5d639d
+t1 = @bind t_cell1 PlutoUI.Slider(0:0.01:1.99;default=sqrt(2),show_value=true)
+
+# ╔═╡ 9d01be38-14aa-42c4-bfb8-7e49ffa02494
+cell1 = WaterbombCell(a,b,d,r_cell1, s_cell1, t_cell1)
+
+# ╔═╡ a6e469aa-f16f-4ce7-a6c5-5542b43ce462
+SimplSurfs.plot_meshes([cell1.mesh], colors=[GLMakie.RGBAf(51/256, 204 / 256, 255 / 256, 1)], show_labels=true)
+
+# ╔═╡ 4fa616a9-722e-4ccf-9aa6-abc77e721d6e
+md"""
+## Cell 2 Setup
+"""
+
+# ╔═╡ 616d4779-09af-45b3-9df2-5a53cc04285f
+r2 = @bind r_cell2 PlutoUI.Slider(0:0.05:1.99;default=1,show_value=true)
+
+# ╔═╡ a8a69509-3201-4b68-8b7c-63ee99f3ddc5
+s2 = @bind s_cell2 PlutoUI.Slider(0:0.01:1.99;default=sqrt(2),show_value=true)
+
+# ╔═╡ 7109f6cf-6a4d-483e-8789-90a372d091d7
+t2 = @bind t_cell2 PlutoUI.Slider(0:0.01:1.99;default=sqrt(2),show_value=true)
+
+# ╔═╡ f6fe05cc-c3a3-488c-a778-a94d2d4a0ea5
+θ2 = @bind rot_cell2 PlutoUI.Slider(0:0.05:2*pi;default=pi,show_value=true)
+
+# ╔═╡ a8d094dd-b363-4b45-a586-9c199911e6be
+begin
+	cell2 = WaterbombCell(a,b,d,r_cell2, s_cell2, t_cell2)
+	coords2 = coordinates(cell1, r_cell2, s_cell2, t_cell2, rot_cell2)
+	coordinates!(cell2, coords2)
+	cell2
+end
+
+# ╔═╡ 89b3da5b-fc57-4941-8943-0ceaf1ad0fbf
+SimplSurfs.plot_meshes([cell1.mesh, cell2.mesh], show_labels=true, title="Waterbomb pattern")
+
+# ╔═╡ f0362dbb-3a84-4ca8-8c68-6aa741289278
+r3 = @bind r_cell3 PlutoUI.Slider(0:0.05:1.99;default=1,show_value=true)
+
+# ╔═╡ 26fe330a-b6f4-4a2c-968b-6e9b653a4fa2
+s3 = @bind s_cell3 PlutoUI.Slider(0:0.01:1.99;default=sqrt(2),show_value=true)
+
+# ╔═╡ 749b854c-f1b2-4e65-8d48-277f94c7a564
+t3 = @bind t_cell3 PlutoUI.Slider(0:0.01:1.99;default=sqrt(2),show_value=true)
+
+# ╔═╡ dbfc2e38-b955-46ad-adec-6556df9403dc
+θ3 = @bind rot_cell3 PlutoUI.Slider(0:0.05:2*pi;default=pi,show_value=true)
+
+# ╔═╡ 630195f5-b6fc-46fd-9428-01f373b2daf6
+begin
+	cell3 = WaterbombCell(a,b,d,r_cell3, s_cell3, t_cell3)
+	coords3 = coordinates(cell1, cell2, r_cell3, s_cell3, t_cell3, rot_cell3)
+	coordinates!(cell3, coords3)
+	cell2
+end
+
+# ╔═╡ 6a395d5e-3600-4d20-8edb-a8f7e30bd40d
+md"""
+## Cell 3 Setup
+"""
+
+# ╔═╡ f542278e-ffe9-4ac6-b420-37b14200238d
+md"""
+# Appendix
+"""
+
+# ╔═╡ Cell order:
+# ╠═760a7ad0-92f0-11f0-05f9-ff782cbc434e
+# ╠═cbd055dd-197f-4cb5-b3c2-236a359c9d3a
+# ╠═66c1a498-adf3-46cf-b4b1-a8a74224da6a
+# ╠═475548bc-b0e2-461d-8347-a15363ef7a35
+# ╠═001b9fda-bd17-46a8-bcd8-f4d0d4a7a025
+# ╠═0ba3d464-52e3-4585-baeb-377ee0fdeb50
+# ╠═d49deeff-5cb7-49f4-8e6d-48e63d34ffc2
+# ╠═d93d4dd0-e682-4728-973e-ee404697480f
+# ╠═772a6bc5-7343-40d0-b3c3-da1f5e5d639d
+# ╠═9d01be38-14aa-42c4-bfb8-7e49ffa02494
+# ╠═a6e469aa-f16f-4ce7-a6c5-5542b43ce462
+# ╠═4fa616a9-722e-4ccf-9aa6-abc77e721d6e
+# ╠═616d4779-09af-45b3-9df2-5a53cc04285f
+# ╠═a8a69509-3201-4b68-8b7c-63ee99f3ddc5
+# ╠═7109f6cf-6a4d-483e-8789-90a372d091d7
+# ╠═f6fe05cc-c3a3-488c-a778-a94d2d4a0ea5
+# ╠═a8d094dd-b363-4b45-a586-9c199911e6be
+# ╠═89b3da5b-fc57-4941-8943-0ceaf1ad0fbf
+# ╠═f0362dbb-3a84-4ca8-8c68-6aa741289278
+# ╠═26fe330a-b6f4-4a2c-968b-6e9b653a4fa2
+# ╠═749b854c-f1b2-4e65-8d48-277f94c7a564
+# ╠═dbfc2e38-b955-46ad-adec-6556df9403dc
+# ╠═630195f5-b6fc-46fd-9428-01f373b2daf6
+# ╠═6a395d5e-3600-4d20-8edb-a8f7e30bd40d
+# ╠═f542278e-ffe9-4ac6-b420-37b14200238d
+# ╠═5ab6e6bb-004d-4953-8b7b-f948ffc6279a

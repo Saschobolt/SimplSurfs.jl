@@ -27,4 +27,7 @@ include("plotting.jl")
 export edge_turn!, edge_turn
 include("mutation.jl")
 
+export WaterbombCell, attach_cell!, update_coordinates!
+include("waterbomb.jl")
+
 end # module SimplSurfs
