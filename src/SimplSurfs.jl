@@ -24,7 +24,7 @@ include("examples.jl")
 
 include("plotting.jl")
 
-export edge_turn!, edge_turn
+export edge_turn!, edge_turn, vertex_split, vertex_split!, contraction!, contraction, flatten!, flatten
 include("mutation.jl")
 
 export WaterbombCell, attach_cell!, update_coordinates!
