@@ -143,31 +143,51 @@ Returns a tuple containing:
 1. `M::Matrix{Float64}`: The 4x4 homogeneous transformation matrix.
 2. `R::Matrix{Float64}`: The 3x3 rotation part of the transformation.
 3. `t::Vector{Float64}`: The 3x1 translation part of the transformation.
+
+# Keywords
+- `flip_angle::Bool=false`: If set to `true`, a 180-degree (π radian)
+  rotation is added to the calculated optimal angle, aligning the plane to
+  its opposite orientation.
 """
-function align_planes(P::AbstractMatrix, Q::AbstractMatrix, p1::AbstractVector, p2::AbstractVector)
+function align_planes(P::AbstractMatrix, Q::AbstractMatrix, p1::AbstractVector, p2::AbstractVector; flip_angle::Bool=false)
     # 1. Find the normal vector for each point cloud's plane
-    (n_p, _) = find_plane(P)
-    (n_q, _) = find_plane(Q)
+    (n_p_initial, p_centroid) = find_plane(P)
+    (n_q, q_centroid) = find_plane(Q)
+
+    # STABILIZATION STEP: Ensure a consistent relative orientation
+    n_p = if dot(n_p_initial, n_q) < 0.0
+        -n_p_initial
+    else
+        n_p_initial
+    end
 
     # 2. Define the rotation axis direction vector
     a = normalize(p2 - p1)
 
     # 3. Project normals onto the plane perpendicular to the axis
-    u = n_p - dot(n_p, a) * a # Component of n_p perpendicular to a
-    v = n_q - dot(n_q, a) * a # Component of n_q perpendicular to a
+    u = n_p - dot(n_p, a) * a
+    v = n_q - dot(n_q, a) * a
 
     # 4. Calculate the optimal rotation angle θ
-    # This is the signed angle between the projected vectors u and v
     θ = atan(dot(cross(u, v), a), dot(u, v))
 
     # 5. Construct the full 4x4 affine transformation matrix
-    M, _, _ = rotate_around_line(p1, p2, θ)
+    (M1, R1, t1) = rotate_around_line(p1, p2, θ)
+    (M2, R2, t2) = rotate_around_line(p1, p2, θ + π)
+    # choose by default the transformation that maximizes the distance between centroids
+    if norm(R1 * p_centroid + t1 - q_centroid) > norm(R2 * p_centroid + t2 - q_centroid)
+        θ_optimal = θ
+    else
+        θ_optimal = θ + π
+    end
 
-    # 6. Extract the 3x3 rotation and 3x1 translation components
-    R = M[1:3, 1:3]
-    t = M[1:3, 4]
-
-    return (M, R, t)
+    # 6. FLIP ANGLE STEP: Apply manual flip if requested
+    θ_final = if flip_angle
+        θ_optimal + π
+    else
+        θ_optimal
+    end
+    return rotate_around_line(p1, p2, θ_final)
 end
 
 # ===================================================================
@@ -335,7 +355,7 @@ If the shared edge of `cell1` and `cell2` is
     - vertex 2 at the vertex position of vertex 6 of `cell1`
 The function returns a 3x7 matrix where each column represents the coordinates of a vertex of the new cell.
 """
-function coordinates(cell1::WaterbombCell, cell2::WaterbombCell, r::Real, s::Real, t::Real, rot::Real=0; atol::Real=1e-10)
+function coordinates(cell1::WaterbombCell, cell2::WaterbombCell, r::Real, s::Real, t::Real, rot::Real=0; atol::Real=1e-10, flip_angle::Bool=false)
     @assert a(cell1) ≈ a(cell2) "Cells must have the same edge length a"
     @assert b(cell1) ≈ b(cell2) "Cells must have the same edge length b"
     @assert d(cell1) ≈ d(cell2) "Cells must have the same edge length d"
@@ -411,7 +431,7 @@ function coordinates(cell1::WaterbombCell, cell2::WaterbombCell, r::Real, s::Rea
         coords = R * coords .+ trans
         if _collinear(coords[:, [3, 2, 7]]) # if points are collinear, rotate around axis defined by these points by angle rot
             # first align them so that dihedral angle between approximating planes is minimized.
-            M, R, trans = align_planes(coords, hcat(coordinate_matrix(m1), coordinate_matrix(m2)), coords[:, 3], coords[:, 2])
+            M, R, trans = align_planes(coords, hcat(coordinate_matrix(m1), coordinate_matrix(m2)), coords[:, 3], coords[:, 2]; flip_angle=flip_angle)
             coords = R * coords .+ trans
             # then rotate by the defined angle.
             M, R, t = rotate_around_line(coords[:, 3], coords[:, 2], rot)
@@ -429,7 +449,7 @@ function coordinates(cell1::WaterbombCell, cell2::WaterbombCell, r::Real, s::Rea
         coords = R * coords .+ trans
         if _collinear(coords[:, [4, 5, 6]]) # if points are collinear, rotate around axis defined by these points by angle rot
             # first align them so that dihedral angle between approximating planes is minimized.
-            M, R, trans = align_planes(coords, hcat(coordinate_matrix(m1), coordinate_matrix(m2)), coords[:, 4], coords[:, 5])
+            M, R, trans = align_planes(coords, hcat(coordinate_matrix(m1), coordinate_matrix(m2)), coords[:, 4], coords[:, 5]; flip_angle=flip_angle)
             coords = R * coords .+ trans
             # then rotate by the defined angle.
             M, R, t = rotate_around_line(coords[:, 4], coords[:, 5], rot)
@@ -440,7 +460,7 @@ function coordinates(cell1::WaterbombCell, cell2::WaterbombCell, r::Real, s::Rea
     return coords
 end
 
-function attach_cell!(cell1::WaterbombCell, cell2::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=1.5, rot::Real=0, atol::Real=1e-10)
+function attach_cell!(cell1::WaterbombCell, cell2::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=1.5, rot::Real=0, atol::Real=1e-10, flip_angle::Bool=false)
     # compute coordinates of new cell
     faces = [
         [1, 2, 3],
@@ -451,7 +471,7 @@ function attach_cell!(cell1::WaterbombCell, cell2::WaterbombCell; r::Real=1, s::
         [1, 7, 2]
     ]
     m = PolyhedralMesh{3,Float64}(faces; labels=1:7)
-    coords = coordinates(cell1, cell2, r, s, t, rot; atol=atol)
+    coords = coordinates(cell1, cell2, r, s, t, rot; atol=atol, flip_angle=flip_angle)
     coordinates!(m, coords)
 
     # determine s_connects and t_connects of new cell
@@ -488,7 +508,7 @@ function attach_cell!(cell1::WaterbombCell, cell2::WaterbombCell; r::Real=1, s::
     return new_cell
 end
 
-function coordinates(cell1::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=2, rot::Real=0, attach_to_a::Bool=true)
+function coordinates(cell1::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=2, rot::Real=0, attach_to_a::Bool=true, flip_angle::Bool=false)
     m = mesh(cell1)
     coords = coordinates(a(cell1), b(cell1), d(cell1), r, s, t, (3, 5), (3, 7))
 
@@ -497,29 +517,26 @@ function coordinates(cell1::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=2
         v2 = vertices(m)[4]
         R, t = kabsch(coords[:, [7, 6]], hcat(coordinates(v1), coordinates(v2)))
         coords = R * coords .+ t
-        M, R, t = align_planes(coords, coordinate_matrix(cell1), coordinates(v1), coordinates(v2))
-        coords = R * coords .+ t
-        M, R, t = rotate_around_line(coordinates(v1), coordinates(v2), rot)
-        coords = R * coords .+ t
     else # new cell is attached to edge (2,3) of cell1. Corresponding verts of new cell are (6,5)
         v1 = vertices(m)[2]
         v2 = vertices(m)[3]
         R, t = kabsch(coords[:, [6, 5]], hcat(coordinates(v1), coordinates(v2)))
         coords = R * coords .+ t
-        M, R, t = align_planes(coords, coordinate_matrix(cell1), coordinates(v1), coordinates(v2))
-        coords = R * coords .+ t
-        M, R, t = rotate_around_line(coordinates(v1), coordinates(v2), rot)
-        coords = R * coords .+ t
     end
+
+    M, R, t = align_planes(coords, coordinate_matrix(cell1), coordinates(v1), coordinates(v2), flip_angle=flip_angle)
+    coords = R * coords .+ t
+    M, R, t = rotate_around_line(coordinates(v1), coordinates(v2), rot)
+    coords = R * coords .+ t
 
     return coords
 end
 
-function attach_cell!(cell1::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=2, rot::Real=0, attach_to_a::Bool=true)
+function attach_cell!(cell1::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=2, rot::Real=0, attach_to_a::Bool=true, flip_angle::Bool=false)
     m = cell1.mesh
 
     new_cell = WaterbombCell(a(cell1), b(cell1), d(cell1), r, s, t)
-    coords = coordinates(cell1, r=r, s=s, t=t, rot=rot, attach_to_a=attach_to_a)
+    coords = coordinates(cell1, r=r, s=s, t=t, rot=rot, attach_to_a=attach_to_a, flip_angle=flip_angle)
     coordinates!(new_cell.mesh, coords)
 
     push!(cell1.dependent_cells, new_cell)
@@ -528,7 +545,7 @@ function attach_cell!(cell1::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=
     return new_cell
 end
 
-function update_coordinates!(cell::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=1.5, rot::Real=0, atol::Real=1e-10)
+function update_coordinates!(cell::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=1.5, rot::Real=0, atol::Real=1e-10, flip_angle::Bool=false)
     m = cell.mesh
 
     if length(cell.dependent_on) == 0
@@ -552,10 +569,10 @@ function update_coordinates!(cell::WaterbombCell; r::Real=1, s::Real=sqrt(2), t:
 
         dependent_cell = cell.dependent_on[1]
 
-        coords = coordinates(dependent_cell, r=r, s=s, t=t, rot=rot, attach_to_a=attach_to_a)
+        coords = coordinates(dependent_cell, r=r, s=s, t=t, rot=rot, attach_to_a=attach_to_a, flip_angle=flip_angle)
         coordinates!(m, coords)
     elseif length(cell.dependent_on) == 2
-        coords = coordinates(cell.dependent_on[1], cell.dependent_on[2], r, s, t, atol=atol)
+        coords = coordinates(cell.dependent_on[1], cell.dependent_on[2], r, s, t, atol=atol, flip_angle=flip_angle)
         coordinates!(m, coords)
     else
         error("A WaterbombCell can only depend on up to two other cells.")
