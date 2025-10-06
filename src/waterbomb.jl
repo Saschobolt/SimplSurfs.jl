@@ -231,15 +231,17 @@ mesh(cell) = cell.mesh
 
 Compute the coordinates of a waterbomb cell in standard position where `s` connects `s_connects` and `t` connects `t_connects`.
 """
-function coordinates(a::Real=1, b::Real=sqrt(2), d::Real=1, r::Real=1, s::Real=sqrt(2), t::Real=1.5, s_connects::Tuple{<:Integer,<:Integer}=(3, 5), t_connects::Tuple{<:Integer,<:Integer}=(3, 7))
+function coordinates(a::Real=1, b::Real=sqrt(2), d::Real=1, r::Real=1, s::Real=sqrt(2), t::Real=2, s_connects::Tuple{<:Integer,<:Integer}=(3, 5), t_connects::Tuple{<:Integer,<:Integer}=(3, 7))
     # coordinates of a cell in standard position where s connects (3,5) and t connects (3,7)
     p1 = [0, 0, 0]
     p2 = [r / 2, 0, sqrt(-r^2 + 4) / 2]
     p3 = [-(d^2 - s^2) / r / 2, 0.1e1 / r * sqrt(-(b^4 * r^2 - b^2 * d^2 * r^2 + b^2 * r^4 - b^2 * r^2 * s^2 + d^2 * r^2 * s^2 - 2 * r^2 * b^2 + d^4 - r^2 * d^2 - 2 * d^2 * s^2 - r^2 * s^2 + s^4 + r^2) / (-r^2 + 4)), sqrt(-r^2 + 4) * (-2 * b^2 + d^2 + s^2 - 2) / (r^2 - 4) / 2]
     p4 = [(2 * sqrt(-(b^4 - 2 * b^2 * s^2 + s^4 - 2 * b^2 - 2 * s^2 + 1) * r^2) * sqrt(-r^2 + 4) * sqrt((b^2 * r^4 + (b^4 + (-d^2 - s^2 - 2) * b^2 + (s^2 - 1) * d^2 - s^2 + 1) * r^2 + (d - s)^2 * (d + s)^2) / (r^2 - 4)) * sqrt((a^2 * b^4 + ((-d^2 - s^2 - 2) * a^2 + (d - s)^2 * (d + s)^2) * b^2 + (a^2 + (d^2 - 1) * s^2 - d^2 + 1) * a^2) / (b^4 + (-2 * s^2 - 2) * b^2 + s^4 - 2 * s^2 + 1)) + r * (((-a^2 + 2 * b^2) * s^2 + (a^2 - 2 * d^2) * b^2 + a^2) * r^2 - 2 * ((-b^2 / 2 + d^2 / 2 - 1 / 2) * s^2 + b^4 / 2 + (-d^2 / 2 - 1) * b^2 + a^2 - d^2 / 2 + 1 / 2) * (d + s) * (d - s))) / (2 * s^4 + (-4 * b^2 - 4) * s^2 + 2 * b^4 - 4 * b^2 + 2) / r^2, (((b^2 - s^2 + 1) * r^2 - 2 * d^2 + 2 * s^2) * sqrt(-r^2 + 4) * sqrt(-(b^4 - 2 * b^2 * s^2 + s^4 - 2 * b^2 - 2 * s^2 + 1) * r^2) * sqrt((a^2 * b^4 + ((-d^2 - s^2 - 2) * a^2 + (d - s)^2 * (d + s)^2) * b^2 + (a^2 + (d^2 - 1) * s^2 - d^2 + 1) * a^2) / (b^4 + (-2 * s^2 - 2) * b^2 + s^4 - 2 * s^2 + 1)) + 2 * (1 / 2 + b^4 / 2 + (-d^2 / 2 - s^2 / 2 - 1) * b^2 + (d^2 - 1) * s^2 / 2 + a^2 - d^2 / 2) * (r + 2) * r * (r - 2) * sqrt((b^2 * r^4 + (b^4 + (-d^2 - s^2 - 2) * b^2 + (s^2 - 1) * d^2 - s^2 + 1) * r^2 + (d - s)^2 * (d + s)^2) / (r^2 - 4))) / (b^4 - 2 * b^2 * s^2 + s^4 - 2 * b^2 - 2 * s^2 + 1) / r^2 / (r^2 - 4), ((2 * r^2 - 8) * sqrt(-(b^4 - 2 * b^2 * s^2 + s^4 - 2 * b^2 - 2 * s^2 + 1) * r^2) * sqrt((b^2 * r^4 + (b^4 + (-d^2 - s^2 - 2) * b^2 + (s^2 - 1) * d^2 - s^2 + 1) * r^2 + (d - s)^2 * (d + s)^2) / (r^2 - 4)) * sqrt((a^2 * b^4 + ((-d^2 - s^2 - 2) * a^2 + (d - s)^2 * (d + s)^2) * b^2 + (a^2 + (d^2 - 1) * s^2 - d^2 + 1) * a^2) / (b^4 + (-2 * s^2 - 2) * b^2 + s^4 - 2 * s^2 + 1)) - sqrt(-r^2 + 4) * r * (((a^2 - 2 * d^2 + 2 * s^2) * b^2 - a^2 * s^2 + a^2) * r^2 + 2 * b^6 + (-3 * d^2 - 3 * s^2 - 2) * b^4 + (s^4 + (4 * d^2 - 10) * s^2 + d^4 + 6 * d^2 - 2) * b^2 + (-d^2 + 1) * s^4 + (-d^4 + 2 * a^2 + 4 * d^2 - 3) * s^2 + 2 + d^4 + (-2 * a^2 - 3) * d^2)) / (b^4 - 2 * b^2 * s^2 + s^4 - 2 * b^2 - 2 * s^2 + 1) / r / (r^2 - 4) / 2]
     p5 = [-r / 2, 0, sqrt(-r^2 + 4) / 2]
-    p6 = [(2 * sqrt(-(b^4 - 2 * b^2 * t^2 + t^4 - 2 * b^2 - 2 * t^2 + 1) * r^2) * sqrt(-r^2 + 4) * sqrt((b^2 * r^4 + (b^4 + (-d^2 - t^2 - 2) * b^2 + (t^2 - 1) * d^2 - t^2 + 1) * r^2 + (d - t)^2 * (d + t)^2) / (r^2 - 4)) * sqrt((a^2 * b^4 + ((-d^2 - t^2 - 2) * a^2 + (d - t)^2 * (d + t)^2) * b^2 + (a^2 + (d^2 - 1) * t^2 - d^2 + 1) * a^2) / (b^4 + (-2 * t^2 - 2) * b^2 + t^4 - 2 * t^2 + 1)) + r * (((-a^2 + 2 * b^2) * t^2 + (a^2 - 2 * d^2) * b^2 + a^2) * r^2 - 2 * ((-b^2 / 2 + d^2 / 2 - 1 / 2) * t^2 + b^4 / 2 + (-d^2 / 2 - 1) * b^2 + a^2 - d^2 / 2 + 1 / 2) * (d + t) * (d - t))) / (2 * t^4 + (-4 * b^2 - 4) * t^2 + 2 * b^4 - 4 * b^2 + 2) / r^2, (-((b^2 - t^2 + 1) * r^2 - 2 * d^2 + 2 * t^2) * sqrt(-r^2 + 4) * sqrt(-(b^4 - 2 * b^2 * t^2 + t^4 - 2 * b^2 - 2 * t^2 + 1) * r^2) * sqrt((a^2 * b^4 + ((-d^2 - t^2 - 2) * a^2 + (d - t)^2 * (d + t)^2) * b^2 + (a^2 + (d^2 - 1) * t^2 - d^2 + 1) * a^2) / (b^4 + (-2 * t^2 - 2) * b^2 + t^4 - 2 * t^2 + 1)) - 2 * (1 / 2 + b^4 / 2 + (-d^2 / 2 - t^2 / 2 - 1) * b^2 + (d^2 - 1) * t^2 / 2 + a^2 - d^2 / 2) * (r + 2) * r * (r - 2) * sqrt((b^2 * r^4 + (b^4 + (-d^2 - t^2 - 2) * b^2 + (t^2 - 1) * d^2 - t^2 + 1) * r^2 + (d - t)^2 * (d + t)^2) / (r^2 - 4))) / (b^4 - 2 * b^2 * t^2 + t^4 - 2 * b^2 - 2 * t^2 + 1) / r^2 / (r^2 - 4), ((2 * r^2 - 8) * sqrt(-(b^4 - 2 * b^2 * t^2 + t^4 - 2 * b^2 - 2 * t^2 + 1) * r^2) * sqrt((b^2 * r^4 + (b^4 + (-d^2 - t^2 - 2) * b^2 + (t^2 - 1) * d^2 - t^2 + 1) * r^2 + (d - t)^2 * (d + t)^2) / (r^2 - 4)) * sqrt((a^2 * b^4 + ((-d^2 - t^2 - 2) * a^2 + (d - t)^2 * (d + t)^2) * b^2 + (a^2 + (d^2 - 1) * t^2 - d^2 + 1) * a^2) / (b^4 + (-2 * t^2 - 2) * b^2 + t^4 - 2 * t^2 + 1)) - sqrt(-r^2 + 4) * r * (((a^2 - 2 * d^2 + 2 * t^2) * b^2 - a^2 * t^2 + a^2) * r^2 + 2 * b^6 + (-3 * d^2 - 3 * t^2 - 2) * b^4 + (t^4 + (4 * d^2 - 10) * t^2 + d^4 + 6 * d^2 - 2) * b^2 + (-d^2 + 1) * t^4 + (-d^4 + 2 * a^2 + 4 * d^2 - 3) * t^2 + 2 + d^4 + (-2 * a^2 - 3) * d^2)) / (b^4 - 2 * b^2 * t^2 + t^4 - 2 * b^2 - 2 * t^2 + 1) / r / (r^2 - 4) / 2]
-    p7 = [(-d^2 + t^2) / r / 2, -sqrt((b^2 * r^4 + (b^4 + (-d^2 - t^2 - 2) * b^2 + (t^2 - 1) * d^2 - t^2 + 1) * r^2 + (d - t)^2 * (d + t)^2) / (r^2 - 4)) / r, (2 * b^2 - d^2 - t^2 + 2) * (-r^2 + 4)^(-1 / 2) / 2]
+    dist = t # distance between vertices 3 and 7
+    t = sqrt((-2 * sqrt(dist^2 * (d^4 + (-2 * b^2 - 2) * d^2 + b^4 - 2 * b^2 + dist^2 + 1) * (b^2 * r^4 + ((-b^2 + s^2 - 1) * d^2 + b^4 + (-s^2 - 2) * b^2 - s^2 + 1) * r^2 + (d - s)^2 * (d + s)^2)) + (2 * dist^2 + d^4 + (-2 * b^2 - 2) * d^2 + b^4 - 2 * b^2 + 1) * s^2 + dist^2 * (-r^2 * b^2 + (r^2 - 2) * d^2 - r^2)) / (b^4 + (-2 * d^2 - 2) * b^2 + d^4 - 2 * d^2 + 1))
+    p6 = [(2 * sqrt(-(b^4 - 2 * b^2 * t^2 + t^4 - 2 * b^2 - 2 * t^2 + 1) * r^2) * sqrt(-r^2 + 4) * sqrt((b^2 * r^4 + (b^4 + (-d^2 - t^2 - 2) * b^2 + (t^2 - 1) * d^2 - t^2 + 1) * r^2 + (d - t)^2 * (d + t)^2) / (r^2 - 4)) * sqrt((a^2 * b^4 + ((-d^2 - t^2 - 2) * a^2 + (d - t)^2 * (d + t)^2) * b^2 + (a^2 + (d^2 - 1) * t^2 - d^2 + 1) * a^2) / (b^4 + (-2 * t^2 - 2) * b^2 + t^4 - 2 * t^2 + 1)) + r * (((-a^2 + 2 * b^2) * t^2 + (a^2 - 2 * d^2) * b^2 + a^2) * r^2 - 2 * ((-b^2 / 2 + d^2 / 2 - 1 // 2) * t^2 + b^4 / 2 + (-d^2 / 2 - 1) * b^2 + a^2 - d^2 / 2 + 1 // 2) * (d + t) * (d - t))) / (2 * t^4 + (-4 * b^2 - 4) * t^2 + 2 * b^4 - 4 * b^2 + 2) / r^2, (-((b^2 - t^2 + 1) * r^2 - 2 * d^2 + 2 * t^2) * sqrt(-r^2 + 4) * sqrt(-(b^4 - 2 * b^2 * t^2 + t^4 - 2 * b^2 - 2 * t^2 + 1) * r^2) * sqrt((a^2 * b^4 + ((-d^2 - t^2 - 2) * a^2 + (d - t)^2 * (d + t)^2) * b^2 + (a^2 + (d^2 - 1) * t^2 - d^2 + 1) * a^2) / (b^4 + (-2 * t^2 - 2) * b^2 + t^4 - 2 * t^2 + 1)) - 2 * (1 // 2 + b^4 / 2 + (-d^2 / 2 - t^2 / 2 - 1) * b^2 + (d^2 - 1) * t^2 / 2 + a^2 - d^2 / 2) * (r + 2) * r * (r - 2) * sqrt((b^2 * r^4 + (b^4 + (-d^2 - t^2 - 2) * b^2 + (t^2 - 1) * d^2 - t^2 + 1) * r^2 + (d - t)^2 * (d + t)^2) / (r^2 - 4))) / (b^4 - 2 * b^2 * t^2 + t^4 - 2 * b^2 - 2 * t^2 + 1) / r^2 / (r^2 - 4), ((2 * r^2 - 8) * sqrt(-(b^4 - 2 * b^2 * t^2 + t^4 - 2 * b^2 - 2 * t^2 + 1) * r^2) * sqrt((b^2 * r^4 + (b^4 + (-d^2 - t^2 - 2) * b^2 + (t^2 - 1) * d^2 - t^2 + 1) * r^2 + (d - t)^2 * (d + t)^2) / (r^2 - 4)) * sqrt((a^2 * b^4 + ((-d^2 - t^2 - 2) * a^2 + (d - t)^2 * (d + t)^2) * b^2 + (a^2 + (d^2 - 1) * t^2 - d^2 + 1) * a^2) / (b^4 + (-2 * t^2 - 2) * b^2 + t^4 - 2 * t^2 + 1)) - sqrt(-r^2 + 4) * r * (((a^2 - 2 * d^2 + 2 * t^2) * b^2 - a^2 * t^2 + a^2) * r^2 + 2 * b^6 + (-3 * d^2 - 3 * t^2 - 2) * b^4 + (t^4 + (4 * d^2 - 10) * t^2 + d^4 + 6 * d^2 - 2) * b^2 + (-d^2 + 1) * t^4 + (-d^4 + 2 * a^2 + 4 * d^2 - 3) * t^2 + 2 + d^4 + (-2 * a^2 - 3) * d^2)) / (b^4 - 2 * b^2 * t^2 + t^4 - 2 * b^2 - 2 * t^2 + 1) / r / (r^2 - 4) / 2]
+    p7 = [(-d^2 + t^2) / r / 2, -sqrt((b^2 * r^4 + (b^4 + (-d^2 - t^2 - 2) * b^2 + (t^2 - 1) * d^2 - t^2 + 1) * r^2 + (d - t)^2 * (d + t)^2) / (r^2 - 4)) / r, (2 * b^2 - d^2 - t^2 + 2) * (-r^2 + 4)^(-1 // 2) / 2]
     coords = hcat(p1, p2, p3, p4, p5, p6, p7)
 
     # transform coords if necessary to get other cases.
@@ -262,7 +264,7 @@ function coordinates(a::Real=1, b::Real=sqrt(2), d::Real=1, r::Real=1, s::Real=s
     end
 end
 
-function WaterbombCell(a::Real=1, b::Real=sqrt(2), d::Real=1, r::Real=1, s::Real=sqrt(2), t::Real=1.5)
+function WaterbombCell(a::Real=1, b::Real=sqrt(2), d::Real=1, r::Real=1, s::Real=sqrt(2), t::Real=2)
     faces = [
         [1, 2, 3],
         [1, 3, 4],
@@ -486,7 +488,7 @@ function attach_cell!(cell1::WaterbombCell, cell2::WaterbombCell; r::Real=1, s::
     return new_cell
 end
 
-function coordinates(cell1::WaterbombCell; r::Real, s::Real, t::Real, rot::Real=0, attach_to_a::Bool=true)
+function coordinates(cell1::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=2, rot::Real=0, attach_to_a::Bool=true)
     m = mesh(cell1)
     coords = coordinates(a(cell1), b(cell1), d(cell1), r, s, t, (3, 5), (3, 7))
 
@@ -513,11 +515,11 @@ function coordinates(cell1::WaterbombCell; r::Real, s::Real, t::Real, rot::Real=
     return coords
 end
 
-function attach_cell!(cell1::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=1.5, rot::Real=0, attach_to_a::Bool=true)
+function attach_cell!(cell1::WaterbombCell; r::Real=1, s::Real=sqrt(2), t::Real=2, rot::Real=0, attach_to_a::Bool=true)
     m = cell1.mesh
 
     new_cell = WaterbombCell(a(cell1), b(cell1), d(cell1), r, s, t)
-    coords = coordinates(cell1, r, s, t, rot, attach_to_a)
+    coords = coordinates(cell1, r=r, s=s, t=t, rot=rot, attach_to_a=attach_to_a)
     coordinates!(new_cell.mesh, coords)
 
     push!(cell1.dependent_cells, new_cell)
@@ -530,7 +532,7 @@ function update_coordinates!(cell::WaterbombCell; r::Real=1, s::Real=sqrt(2), t:
     m = cell.mesh
 
     if length(cell.dependent_on) == 0
-        coords = coordinates(cell.a, cell.b, cell.d, r, s, t, cell.s_connects, cell.t_connects)
+        coords = coordinates(a(cell), b(cell), d(cell), r, s, t, cell.s_connects, cell.t_connects)
         coordinates!(m, coords)
     elseif length(cell.dependent_on) == 1
         e1, e2 = shared_edge(cell, cell.dependent_on[1], atol=atol)
@@ -548,7 +550,10 @@ function update_coordinates!(cell::WaterbombCell; r::Real=1, s::Real=sqrt(2), t:
             throw(ArgumentError("Cells do not share a valid edge"))
         end
 
-        coords = coordinates(cell.dependent_on[1], r, s, t, rot, attach_to_a)
+        dependent_cell = cell.dependent_on[1]
+
+        coords = coordinates(dependent_cell, r=r, s=s, t=t, rot=rot, attach_to_a=attach_to_a)
+        coordinates!(m, coords)
     elseif length(cell.dependent_on) == 2
         coords = coordinates(cell.dependent_on[1], cell.dependent_on[2], r, s, t, atol=atol)
         coordinates!(m, coords)
@@ -558,7 +563,7 @@ function update_coordinates!(cell::WaterbombCell; r::Real=1, s::Real=sqrt(2), t:
 
     # update dependent cells
     for dependent_cell in cell.dependent_cells
-        update_coordinates!(dependent_cell, r(dependent_cell), s(dependent_cell), t(dependent_cell); atol=atol)
+        update_coordinates!(dependent_cell, r=SimplSurfs.r(dependent_cell), s=SimplSurfs.s(dependent_cell), t=SimplSurfs.t(dependent_cell), atol=atol)
     end
 
     return cell
